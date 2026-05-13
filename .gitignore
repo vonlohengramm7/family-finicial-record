@@ -1,0 +1,29 @@
+# Java
+target/
+*.class
+*.jar
+*.war
+*.log
+.settings/
+.project
+.classpath
+*.iml
+.idea/
+*.swp
+*~
+
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+
+# MySQL
+*.sql.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+*.local
