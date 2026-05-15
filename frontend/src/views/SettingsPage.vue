@@ -13,19 +13,27 @@
             </div>
           </template>
 
-          <el-table :data="categories" v-loading="loadingCategories" row-key="id" stripe size="small" style="width: 100%">
-            <el-table-column prop="name" label="分类名称" min-width="140" />
-            <el-table-column prop="sortOrder" label="排序" width="60" />
-            <el-table-column prop="icon" label="图标" width="60" />
-            <el-table-column prop="children" label="子分类" width="80">
+          <el-table
+            :data="categoryTree"
+            v-loading="loadingCategories"
+            row-key="id"
+            stripe
+            size="small"
+            style="width: 100%"
+            default-expand-all
+            :tree-props="{ children: 'children' }"
+          >
+            <el-table-column prop="name" label="分类名称" min-width="160">
               <template #default="{ row }">
-                <el-tag size="small" v-if="row.children && row.children.length">{{ row.children.length }}</el-tag>
-                <span v-else style="color: #909399;">-</span>
+                <span>{{ row.icon || '' }} {{ row.name }}</span>
+                <el-tag size="small" type="success" effect="plain" v-if="!row.parentId" style="margin-left: 8px;">大类</el-tag>
+                <el-tag size="small" type="warning" effect="plain" v-if="!row.isActive && row.isActive === false" style="margin-left: 4px;">已停用</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="180" fixed="right">
+            <el-table-column prop="sortOrder" label="排序" width="60" />
+            <el-table-column label="操作" width="170" fixed="right">
               <template #default="{ row }">
-                <el-button type="primary" size="small" text @click="showAddDialog(row)">+ 子类</el-button>
+                <el-button v-if="!row.parentId" type="primary" size="small" text @click="showAddDialog(row)">+ 子类</el-button>
                 <el-button type="warning" size="small" text @click="showEditDialog(row)">编辑</el-button>
                 <el-popconfirm title="确定删除此分类？" @confirm="handleDeleteCategory(row.id)">
                   <template #reference>
@@ -99,9 +107,6 @@ import { getCategories, createCategory, updateCategory, deleteCategory } from '.
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 
-const loadingCategories = ref(false)
-const categories = ref([])
-
 // Dialog state
 const dialogVisible = ref(false)
 const dialogMode = ref('add') // 'add' | 'edit'
@@ -122,11 +127,34 @@ const categoryRules = {
   name: [{ required: true, message: '请输入分类名称', trigger: 'blur' }],
 }
 
+const loadingCategories = ref(false)
+const categories = ref([])
+const categoryTree = ref([])
+
+// build tree from flat list
+function buildTree(list) {
+  const map = {}
+  const roots = []
+  list.forEach(c => { map[c.id] = { ...c, children: [] } })
+  list.forEach(c => {
+    if (c.parentId && map[c.parentId]) {
+      map[c.parentId].children.push(map[c.id])
+    } else if (!c.parentId) {
+      roots.push(map[c.id])
+    }
+  })
+  // sort children by sortOrder
+  roots.forEach(r => r.children.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)))
+  return roots
+}
+
 async function loadCategories() {
   loadingCategories.value = true
   try {
     const data = await getCategories()
-    categories.value = Array.isArray(data) ? data : []
+    const list = Array.isArray(data) ? data : (data?.data || [])
+    categories.value = list
+    categoryTree.value = buildTree(list)
   } catch (e) {
     console.error('Failed to load categories:', e)
     ElMessage.error('加载分类失败')
