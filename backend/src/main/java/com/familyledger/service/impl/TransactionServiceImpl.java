@@ -199,7 +199,15 @@ public class TransactionServiceImpl implements TransactionService {
         }
         applyDateRange(wrapper, startDate, endDate);
         if (StringUtils.isNotBlank(keyword)) {
-            wrapper.like(Transaction::getNote, keyword);
+            try {
+                BigDecimal kwAmount = new BigDecimal(keyword);
+                BigDecimal negAmount = kwAmount.negate();
+                wrapper.and(w -> w.like(Transaction::getNote, keyword)
+                                    .or().eq(Transaction::getAmount, kwAmount)
+                                    .or().eq(Transaction::getAmount, negAmount));
+            } catch (NumberFormatException e) {
+                wrapper.like(Transaction::getNote, keyword);
+            }
         }
         if (minAmount != null) {
             wrapper.ge(Transaction::getAmount, minAmount);
