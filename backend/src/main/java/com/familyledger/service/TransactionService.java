@@ -11,10 +11,11 @@ public interface TransactionService {
 
     Transaction getById(Long id);
 
-    List<Transaction> list(Integer page, Integer size, Long userId, Long categoryId,
-                           LocalDate startDate, LocalDate endDate, String keyword);
+    List<Transaction> list(Integer page, Integer size, Long userId, Long categoryId, List<Long> categoryIds,
+                           LocalDate startDate, LocalDate endDate, String keyword, BigDecimal minAmount, BigDecimal maxAmount);
 
-    long count(Long userId, Long categoryId, LocalDate startDate, LocalDate endDate, String keyword);
+    long count(Long userId, Long categoryId, List<Long> categoryIds, LocalDate startDate, LocalDate endDate,
+               String keyword, BigDecimal minAmount, BigDecimal maxAmount);
 
     Transaction create(Transaction transaction);
 

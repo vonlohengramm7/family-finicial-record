@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -26,12 +27,15 @@ public class TransactionController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) List<Long> categoryIds,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) BigDecimal minAmount,
+            @RequestParam(required = false) BigDecimal maxAmount) {
 
-        long total = transactionService.count(userId, categoryId, startDate, endDate, keyword);
-        List<Transaction> records = transactionService.list(page, size, userId, categoryId, startDate, endDate, keyword);
+        long total = transactionService.count(userId, categoryId, categoryIds, startDate, endDate, keyword, minAmount, maxAmount);
+        List<Transaction> records = transactionService.list(page, size, userId, categoryId, categoryIds, startDate, endDate, keyword, minAmount, maxAmount);
         PageResult<Transaction> pageResult = new PageResult<>(records, total, page, size);
         return ResponseEntity.ok(ApiResult.success(pageResult));
     }

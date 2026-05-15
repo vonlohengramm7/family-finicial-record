@@ -18,18 +18,24 @@
         </el-form-item>
         <el-form-item label="分类">
           <el-cascader
-            v-model="filters.categoryId"
+            v-model="filters.categoryPath"
             :options="categoryOptions"
-            :props="{ value: 'id', label: 'name', children: 'children', emitPath: false }"
+            :props="{ value: 'id', label: 'name', children: 'children', checkStrictly: false }"
             placeholder="全部分类"
             clearable
-            style="width: 160px;"
+            style="width: 200px;"
+            @change="onCategoryChange"
           />
         </el-form-item>
         <el-form-item label="归属人">
           <el-select v-model="filters.userId" placeholder="全部" clearable style="width: 140px;">
             <el-option v-for="u in users" :key="u.id" :label="u.nickname" :value="u.id" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="金额">
+          <el-input-number v-model="filters.minAmount" placeholder="最低" :precision="0" style="width: 110px;" controls-position="right" />
+          <span style="margin: 0 4px; color: #909399;">至</span>
+          <el-input-number v-model="filters.maxAmount" placeholder="最高" :precision="0" style="width: 110px;" controls-position="right" />
         </el-form-item>
         <el-form-item label="关键词">
           <el-input v-model="filters.keyword" placeholder="搜索备注..." clearable style="width: 180px;" />
@@ -96,9 +102,51 @@ const dateRange = ref(null)
 
 const filters = reactive({
   userId: null,
+  categoryPath: null,
   categoryId: null,
+  categoryIds: null,
   keyword: '',
+  minAmount: null,
+  maxAmount: null,
 })
+
+// Cascade selection: if user picked a parent, resolve all child IDs
+function onCategoryChange(val) {
+  if (val && val.length > 0) {
+    const leafId = val[val.length - 1]
+    // Find the node and check if it's a parent
+    const findNode = (nodes, id) => {
+      for (const n of nodes) {
+        if (n.id === id) return n
+        if (n.children) {
+          const found = findNode(n.children, id)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    const node = findNode(categoryOptions.value, leafId)
+    if (node && Array.isArray(node.children) && node.children.length > 0) {
+      // Parent selected → collect all descendant leaf IDs
+      const collectLeafIds = (n) => {
+        if (!n.children || n.children.length === 0) return [n.id]
+        let ids = []
+        for (const c of n.children) ids = ids.concat(collectLeafIds(c))
+        return ids
+      }
+      filters.categoryIds = collectLeafIds(node)
+      filters.categoryId = null
+    } else {
+      // Leaf selected
+      filters.categoryId = leafId
+      filters.categoryIds = null
+    }
+  } else {
+    filters.categoryId = null
+    filters.categoryIds = null
+  }
+  search()
+}
 
 const categoryOptions = ref([])
 const users = ref([])
@@ -145,7 +193,10 @@ async function loadData() {
     }
     if (filters.userId) params.userId = filters.userId
     if (filters.categoryId) params.categoryId = filters.categoryId
+    if (filters.categoryIds && filters.categoryIds.length > 0) params.categoryIds = filters.categoryIds.join(',')
     if (filters.keyword) params.keyword = filters.keyword
+    if (filters.minAmount != null && filters.minAmount !== '') params.minAmount = filters.minAmount
+    if (filters.maxAmount != null && filters.maxAmount !== '') params.maxAmount = filters.maxAmount
     if (dateRange.value) {
       params.startDate = dateRange.value[0]
       params.endDate = dateRange.value[1]
@@ -179,7 +230,11 @@ function search() {
 function resetFilters() {
   filters.userId = null
   filters.categoryId = null
+  filters.categoryIds = null
+  filters.categoryPath = null
   filters.keyword = ''
+  filters.minAmount = null
+  filters.maxAmount = null
   dateRange.value = null
   page.value = 1
   loadData()

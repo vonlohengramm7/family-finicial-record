@@ -28,8 +28,10 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     public List<Transaction> list(Integer page, Integer size, Long userId, Long categoryId,
-                                  LocalDate startDate, LocalDate endDate, String keyword) {
-        LambdaQueryWrapper<Transaction> wrapper = buildQueryWrapper(userId, categoryId, startDate, endDate, keyword);
+                                  List<Long> categoryIds, LocalDate startDate, LocalDate endDate,
+                                  String keyword, BigDecimal minAmount, BigDecimal maxAmount) {
+        LambdaQueryWrapper<Transaction> wrapper = buildQueryWrapper(userId, categoryId, categoryIds,
+                startDate, endDate, keyword, minAmount, maxAmount);
         wrapper.orderByDesc(Transaction::getTransDate, Transaction::getCreatedAt);
         if (page != null && size != null) {
             Page<Transaction> p = transactionMapper.selectPage(new Page<>(page, size), wrapper);
@@ -39,8 +41,11 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    public long count(Long userId, Long categoryId, LocalDate startDate, LocalDate endDate, String keyword) {
-        LambdaQueryWrapper<Transaction> wrapper = buildQueryWrapper(userId, categoryId, startDate, endDate, keyword);
+    public long count(Long userId, Long categoryId, List<Long> categoryIds,
+                      LocalDate startDate, LocalDate endDate,
+                      String keyword, BigDecimal minAmount, BigDecimal maxAmount) {
+        LambdaQueryWrapper<Transaction> wrapper = buildQueryWrapper(userId, categoryId, categoryIds,
+                startDate, endDate, keyword, minAmount, maxAmount);
         return transactionMapper.selectCount(wrapper);
     }
 
@@ -177,18 +182,30 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     private LambdaQueryWrapper<Transaction> buildQueryWrapper(Long userId, Long categoryId,
+                                                               List<Long> categoryIds,
                                                                LocalDate startDate, LocalDate endDate,
-                                                               String keyword) {
+                                                               String keyword, BigDecimal minAmount, BigDecimal maxAmount) {
         LambdaQueryWrapper<Transaction> wrapper = new LambdaQueryWrapper<>();
         if (userId != null) {
             wrapper.eq(Transaction::getUserId, userId);
         }
+        // Single categoryId (exact match, backward compat)
         if (categoryId != null) {
             wrapper.eq(Transaction::getCategoryId, categoryId);
+        }
+        // Multiple categoryIds (e.g. when user selects a parent category)
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            wrapper.in(Transaction::getCategoryId, categoryIds);
         }
         applyDateRange(wrapper, startDate, endDate);
         if (StringUtils.isNotBlank(keyword)) {
             wrapper.like(Transaction::getNote, keyword);
+        }
+        if (minAmount != null) {
+            wrapper.ge(Transaction::getAmount, minAmount);
+        }
+        if (maxAmount != null) {
+            wrapper.le(Transaction::getAmount, maxAmount);
         }
         return wrapper;
     }
