@@ -1,0 +1,21 @@
+server:
+  port: 8080
+  address: 127.0.0.1
+
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/family_ledger?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: hermes
+    password: ${LEDGER_DB_PASS:hermes_ledger_2026}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      update-strategy: not_null
+      where-strategy: not_null
+    banner: false
