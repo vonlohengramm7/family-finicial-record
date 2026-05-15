@@ -130,7 +130,7 @@ const router = useRouter()
 
 const period = ref('month')
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
-const selectedYear = ref('2025')
+const selectedYear = ref(String(new Date().getFullYear()))
 const customRange = ref(null)
 const filterUserId = ref(null)
 
@@ -170,10 +170,7 @@ function onPeriodChange() {
   if (period.value === 'month') {
     selectedMonth.value = new Date().toISOString().slice(0, 7)
   } else if (period.value === 'year') {
-    // Keep existing year if already set to a year with data, default to 2025
-    if (!selectedYear.value || selectedYear.value === String(new Date().getFullYear())) {
-      selectedYear.value = '2025'
-    }
+    selectedYear.value = String(new Date().getFullYear())
   } else {
     const now = new Date()
     const first = new Date(now.getFullYear(), now.getMonth(), 1)
