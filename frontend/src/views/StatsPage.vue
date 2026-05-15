@@ -143,6 +143,7 @@ const userNameMap = ref({})
 const summary = reactive({ expense: 0, income: 0, balance: 0 })
 
 const catChartRef = ref(null)
+const currentRange = ref({ startDate: '', endDate: '' })
 let catChart = null
 
 function formatMoney(val) {
@@ -185,6 +186,7 @@ function onPeriodChange() {
 async function loadStats() {
   const range = getDateRange()
   if (!range.startDate || !range.endDate) return
+  currentRange.value = range
 
   try {
     // Ensure category name map is loaded
@@ -245,7 +247,8 @@ function renderChart(nameMap = {}, range = {}) {
     catChart = echarts.init(catChartRef.value)
     catChart.on('click', (params) => {
       if (params.data && params.data.categoryId) {
-        router.push(`/transactions?categoryId=${params.data.categoryId}&startDate=${range.startDate || ''}&endDate=${range.endDate || ''}`)
+        const r = currentRange.value
+        router.push(`/transactions?categoryId=${params.data.categoryId}&startDate=${r.startDate || ''}&endDate=${r.endDate || ''}`)
       }
     })
   }
