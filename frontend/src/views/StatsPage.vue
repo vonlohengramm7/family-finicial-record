@@ -103,8 +103,12 @@
         <el-card shadow="hover">
           <template #header>每人汇总</template>
           <el-table :data="userStats" stripe size="small" style="width: 100%">
-            <el-table-column prop="nickname" label="归属人" />
-            <el-table-column prop="totalAmount" label="金额" :formatter="fmtAmount" />
+            <el-table-column label="归属人">
+              <template #default="scope">
+                {{ userNameMap[scope.row.userId] || scope.row.nickname || `用户${scope.row.userId}` }}
+              </template>
+            </el-table-column>
+            <el-table-column label="支出" :formatter="(r) => '¥' + formatMoney(Math.abs(Number(r.expense || r.total || 0)))" />
           </el-table>
           <div v-if="userStats.length === 0" style="text-align: center; color: #909399; padding: 40px 0;">
             暂无数据
@@ -117,19 +121,21 @@
 
 <script setup>
 import { ref, reactive, onMounted, nextTick } from 'vue'
-import { getStatsByCategory, getStatsByUser, getMonthlyStats, getUsers } from '../api/index.js'
+import { getStatsByCategory, getStatsByUser, getMonthlyStats, getCategories, getUsers } from '../api/index.js'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 
 const period = ref('month')
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
-const selectedYear = ref(String(new Date().getFullYear()))
+const selectedYear = ref('2025')
 const customRange = ref(null)
 const filterUserId = ref(null)
 
 const users = ref([])
 const categoryStats = ref([])
 const userStats = ref([])
+const catNameMap = ref({})
+const userNameMap = ref({})
 
 const summary = reactive({ expense: 0, income: 0, balance: 0 })
 
@@ -138,10 +144,6 @@ let catChart = null
 
 function formatMoney(val) {
   return (Number(val) || 0).toFixed(2)
-}
-
-function fmtAmount(row) {
-  return `¥${formatMoney(row.totalAmount)}`
 }
 
 function getDateRange() {
@@ -165,7 +167,10 @@ function onPeriodChange() {
   if (period.value === 'month') {
     selectedMonth.value = new Date().toISOString().slice(0, 7)
   } else if (period.value === 'year') {
-    selectedYear.value = String(new Date().getFullYear())
+    // Keep existing year if already set to a year with data, default to 2025
+    if (!selectedYear.value || selectedYear.value === String(new Date().getFullYear())) {
+      selectedYear.value = '2025'
+    }
   } else {
     const now = new Date()
     const first = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -182,6 +187,17 @@ async function loadStats() {
   if (!range.startDate || !range.endDate) return
 
   try {
+    // Ensure category name map is loaded
+    try {
+      const catList = await getCategories()
+      if (catList && catList.length) {
+        const map = {}
+        for (const c of catList) map[c.id] = c.name
+        catNameMap.value = map
+        console.log('catNameMap loaded:', Object.keys(map).length, 'keys')
+      }
+    } catch (_) {}
+
     const params = { startDate: range.startDate, endDate: range.endDate }
     if (filterUserId.value) params.userId = filterUserId.value
 
@@ -196,7 +212,7 @@ async function loadStats() {
     // Calculate summary
     let expense = 0, income = 0
     categoryStats.value.forEach(item => {
-      const amt = Number(item.totalAmount) || 0
+      const amt = Number(item.total) || 0
       if (amt < 0) expense += Math.abs(amt)
       else income += amt
     })
@@ -204,34 +220,66 @@ async function loadStats() {
     summary.income = income
     summary.balance = income - expense
 
+    // Build category name lookup
+    const nameMap = {}
+    try {
+      const catList = await getCategories()
+      const cats = Array.isArray(catList) ? catList : (catList?.data || [])
+      console.log('loadStats getCategories:', cats.length, 'items')
+      if (cats.length) for (const c of cats) nameMap[c.id] = c.name
+    } catch (e) {
+      console.error('loadStats getCategories error:', e)
+    }
+
     await nextTick()
-    renderChart()
+    renderChart(nameMap)
   } catch (e) {
     console.error('Failed to load stats:', e)
     ElMessage.error('加载统计数据失败')
   }
 }
 
-function renderChart() {
+function renderChart(nameMap = {}) {
   if (!catChartRef.value) return
   if (!catChart) {
     catChart = echarts.init(catChartRef.value)
   }
 
-  const items = categoryStats.value.map(item => ({
-    name: item.categoryName || item.name || '未分类',
-    value: Math.abs(Number(item.totalAmount) || 0),
-  }))
+  console.log('nameMap keys:', Object.keys(nameMap).length, 'catStats:', categoryStats.value.length)
+
+  let items = categoryStats.value
+    .filter(item => (Number(item.total) || 0) < 0) // expenses only
+    .map(item => ({
+      name: nameMap[item.categoryId] || `分类${item.categoryId}`,
+      value: Math.abs(Number(item.total) || 0),
+    }))
+  items.sort((a, b) => b.value - a.value)
+
+  // Group small items (< 5%)
+  if (items.length > 5) {
+    const total = items.reduce((s, i) => s + i.value, 0)
+    const big = []
+    let otherVal = 0
+    for (const item of items) {
+      if (item.value / total >= 0.05) {
+        big.push(item)
+      } else {
+        otherVal += item.value
+      }
+    }
+    if (otherVal > 0) big.push({ name: '其他', value: otherVal })
+    items = big
+  }
 
   catChart.setOption({
-    tooltip: { trigger: 'item', formatter: '{b}: ¥{c}' },
+    tooltip: { trigger: 'item', formatter: (p) => `${p.name}: ¥${Number(p.value).toFixed(2)}` },
     legend: { bottom: 0, type: 'scroll' },
     series: [{
       type: 'pie',
       radius: ['30%', '55%'],
       center: ['50%', '45%'],
       data: items.length > 0 ? items : [{ name: '暂无数据', value: 1 }],
-      label: { formatter: '{b}\n¥{c}' },
+      label: { formatter: (p) => `${p.name}\n¥${Number(p.value).toFixed(2)}` },
       emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' } },
     }],
   })
@@ -239,6 +287,23 @@ function renderChart() {
 
 onMounted(async () => {
   try {
+    // Preload category & user name maps
+    try {
+      const catList = await getCategories()
+      if (catList && catList.length) {
+        const map = {}
+        for (const c of catList) map[c.id] = c.name
+        catNameMap.value = map
+      }
+    } catch (_) {}
+    try {
+      const usrList = await getUsers()
+      if (usrList && usrList.length) {
+        const map = {}
+        for (const u of usrList) map[u.id] = u.nickname
+        userNameMap.value = map
+      }
+    } catch (_) {}
     const usrs = await getUsers()
     users.value = usrs || []
   } catch (e) {

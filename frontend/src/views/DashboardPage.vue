@@ -38,23 +38,36 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="16">
-      <!-- Category pie chart -->
+    <el-row :gutter="16" style="margin-bottom: 20px;">
+      <!-- Expense category pie -->
       <el-col :span="12">
         <el-card shadow="hover">
-          <template #header>分类支出占比</template>
-          <div ref="categoryChartRef" class="chart-container"></div>
-          <div v-if="categoryStats.length === 0" style="text-align: center; color: #909399; padding: 60px 0;">
+          <template #header>支出分类占比</template>
+          <div ref="categoryChartRef" class="chart-container" style="height: 350px;"></div>
+          <div v-if="categoryStats.filter(c => (c.total||c.expense||0) < 0).length === 0" style="text-align: center; color: #909399; padding: 60px 0;">
             暂无数据
           </div>
         </el-card>
       </el-col>
 
-      <!-- Per-user breakdown -->
+      <!-- Income category pie -->
       <el-col :span="12">
         <el-card shadow="hover">
+          <template #header>收入分类占比</template>
+          <div ref="incomeChartRef" class="chart-container" style="height: 350px;"></div>
+          <div v-if="categoryStats.filter(c => (c.total||c.income||0) > 0).length === 0" style="text-align: center; color: #909399; padding: 60px 0;">
+            暂无数据
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="16">
+      <!-- Per-user pie -->
+      <el-col :span="12" :offset="6">
+        <el-card shadow="hover">
           <template #header>各人支出占比</template>
-          <div ref="userChartRef" class="chart-container"></div>
+          <div ref="userChartRef" class="chart-container" style="height: 350px;"></div>
           <div v-if="userStats.length === 0" style="text-align: center; color: #909399; padding: 60px 0;">
             暂无数据
           </div>
@@ -66,7 +79,7 @@
 
 <script setup>
 import { ref, onMounted, nextTick, reactive } from 'vue'
-import { getStatsByCategory, getStatsByUser, getMonthlyStats, getUsers } from '../api/index.js'
+import { getStatsByCategory, getStatsByUser, getMonthlyStats, getCategories, getUsers } from '../api/index.js'
 import * as echarts from 'echarts'
 
 const currentMonth = ref(new Date().toISOString().slice(0, 7))
@@ -77,8 +90,10 @@ const categoryStats = ref([])
 const userStats = ref([])
 
 const categoryChartRef = ref(null)
+const incomeChartRef = ref(null)
 const userChartRef = ref(null)
 let categoryChart = null
+let incomeChart = null
 let userChart = null
 
 function formatMoney(val) {
@@ -89,16 +104,19 @@ function formatMoney(val) {
 async function loadData() {
   try {
     const [year, month] = currentMonth.value.split('-').map(Number)
-
-    // 1. Load monthly stats for summary
-    const monthly = await getMonthlyStats({ year, month })
-    summary.expense = monthly.totalExpense || 0
-    summary.income = monthly.totalIncome || 0
-    summary.balance = summary.income - summary.expense
-
-    // 2. Category stats (full month)
     const startDate = `${currentMonth.value}-01`
     const endDate = new Date(year, month, 0).toISOString().slice(0, 10)
+
+    // 1. Load monthly stats — backend returns array of all months in date range
+    //    We filter for the exact selected month
+    const monthlyArr = await getMonthlyStats({ startDate, endDate })
+    const monthStr = `${year}-${String(month).padStart(2, '0')}`
+    const monthRow = (monthlyArr || []).find(m => m.month === monthStr)
+    summary.expense = Math.abs(Number(monthRow?.expense || 0))
+    summary.income = Number(monthRow?.income || 0)
+    summary.balance = summary.income - summary.expense
+
+    // 2. Category stats
     const catData = await getStatsByCategory({ startDate, endDate })
     categoryStats.value = catData || []
 
@@ -114,27 +132,75 @@ async function loadData() {
 }
 
 function renderCharts() {
+  // Helper: group small items into "其他"
+  function groupSmall(items, threshold = 0.05) {
+    if (items.length <= 5) return items
+    const total = items.reduce((s, i) => s + i.value, 0)
+    const big = []
+    let otherVal = 0
+    for (const item of items) {
+      if (item.value / total >= threshold) {
+        big.push(item)
+      } else {
+        otherVal += item.value
+      }
+    }
+    if (otherVal > 0) {
+      big.push({ name: '其他', value: otherVal })
+    }
+    return big
+  }
+
   // Category pie
   if (categoryChartRef.value) {
     if (!categoryChart) {
       categoryChart = echarts.init(categoryChartRef.value)
     }
-    const catItems = categoryStats.value
-      .filter(item => (Number(item.totalAmount) || 0) < 0) // expenses only
+    let catItems = categoryStats.value
+      .filter(item => (Number(item.total) || Number(item.expense) || 0) < 0) // expenses only
       .map(item => ({
-        name: item.categoryName || item.name || '未分类',
-        value: Math.abs(Number(item.totalAmount) || 0),
+        name: (window.__catNameMap || {})[item.categoryId] || (item.categoryName || item.name || `分类${item.categoryId}`),
+        value: Math.abs(Number(item.total) || Number(item.expense) || 0),
       }))
+    catItems.sort((a, b) => b.value - a.value)
+    catItems = groupSmall(catItems)
 
     categoryChart.setOption({
-      tooltip: { trigger: 'item', formatter: '{b}: ¥{c}' },
+      tooltip: { trigger: 'item', formatter: (p) => `${p.name}: ¥${Number(p.value).toFixed(2)}` },
       legend: { bottom: 0, type: 'scroll' },
       series: [{
         type: 'pie',
         radius: ['30%', '55%'],
         center: ['50%', '45%'],
         data: catItems.length > 0 ? catItems : [{ name: '暂无数据', value: 1 }],
-        label: { formatter: '{b}\n¥{c}' },
+        label: { formatter: (p) => `${p.name}\n¥${Number(p.value).toFixed(2)}` },
+        emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' } },
+      }],
+    })
+  }
+
+  // Income category pie
+  if (incomeChartRef.value) {
+    if (!incomeChart) {
+      incomeChart = echarts.init(incomeChartRef.value)
+    }
+    let incomeCatItems = categoryStats.value
+      .filter(item => (Number(item.total) || Number(item.income) || 0) > 0)
+      .map(item => ({
+        name: (window.__catNameMap || {})[item.categoryId] || (item.categoryName || item.name || `分类${item.categoryId}`),
+        value: Math.abs(Number(item.total) || Number(item.income) || 0),
+      }))
+    incomeCatItems.sort((a, b) => b.value - a.value)
+    incomeCatItems = groupSmall(incomeCatItems)
+    incomeChart.setOption({
+      tooltip: { trigger: 'item', formatter: (p) => `${p.name}: ¥${Number(p.value).toFixed(2)}` },
+      legend: { bottom: 0, type: 'scroll' },
+      series: [{
+        type: 'pie',
+        radius: ['30%', '55%'],
+        center: ['50%', '45%'],
+        data: incomeCatItems.length > 0 ? incomeCatItems : [{ name: '暂无数据', value: 1 }],
+        label: { formatter: (p) => `${p.name}\n¥${Number(p.value).toFixed(2)}` },
         emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' } },
       }],
     })
@@ -145,26 +211,48 @@ function renderCharts() {
     if (!userChart) {
       userChart = echarts.init(userChartRef.value)
     }
-    const userItems = (userStats.value || []).map(item => ({
-      name: item.nickname || item.userName || `用户${item.userId}`,
-      value: Math.abs(Number(item.totalAmount) || 0),
+    let userItems = (userStats.value || []).map(item => ({
+      name: (window.__userNameMap || {})[item.userId] || item.nickname || item.userName || `用户${item.userId}`,
+      value: Math.abs(Number(item.expense || item.total || 0)),
     }))
+    userItems.sort((a, b) => b.value - a.value)
+    userItems = groupSmall(userItems, 0.01)
     userChart.setOption({
-      tooltip: { trigger: 'item', formatter: '{b}: ¥{c}' },
+      tooltip: { trigger: 'item', formatter: (p) => `${p.name}: ¥${Number(p.value).toFixed(2)}` },
       legend: { bottom: 0 },
       series: [{
         type: 'pie',
         radius: ['30%', '55%'],
         center: ['50%', '45%'],
         data: userItems.length > 0 ? userItems : [{ name: '暂无数据', value: 1 }],
-        label: { formatter: '{b}\n¥{c}' },
+        label: { formatter: (p) => `${p.name}\n¥${Number(p.value).toFixed(2)}` },
         emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' } },
       }],
     })
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Preload category lookup map for chart labels
+  try {
+    const catList = await getCategories()
+    if (catList && catList.length) {
+      window.__catNameMap = {}
+      for (const c of catList) {
+        window.__catNameMap[c.id] = c.name
+      }
+    }
+  } catch (_) {}
+  // Preload user list for user chart labels
+  try {
+    const userList = await getUsers()
+    if (userList && userList.length) {
+      window.__userNameMap = {}
+      for (const u of userList) {
+        window.__userNameMap[u.id] = u.nickname
+      }
+    }
+  } catch (_) {}
   loadData()
 })
 </script>

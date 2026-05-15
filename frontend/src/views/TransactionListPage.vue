@@ -99,10 +99,22 @@ const filters = reactive({
 
 const categoryOptions = ref([])
 const users = ref([])
+const catNameMap = ref({})
+const userNameMap = ref({})
 
 function fmtAmount(row) {
   const val = Number(row.amount) || 0
   return `¥${val.toFixed(2)}`
+}
+
+function enrichTransactions(list) {
+  const cm = catNameMap.value
+  const um = userNameMap.value
+  list.forEach(t => {
+    t.categoryName = cm[t.categoryId] || ''
+    t.userNickname = um[t.userId] || ''
+  })
+  return list
 }
 
 function buildCategoryTree(categories) {
@@ -139,10 +151,10 @@ async function loadData() {
     const res = await getTransactions(params)
     // API may return paginated { records, total } or plain array
     if (Array.isArray(res)) {
-      transactions.value = res
+      transactions.value = enrichTransactions(res)
       total.value = res.length
     } else if (res.records) {
-      transactions.value = res.records
+      transactions.value = enrichTransactions(res.records)
       total.value = res.total || 0
     } else {
       transactions.value = []
@@ -185,7 +197,7 @@ function exportCSV() {
   const rows = transactions.value.map(t => [
     t.transDate,
     t.transTime,
-    t.amount,
+    t.amount !== null && t.amount !== undefined ? Number(t.amount).toFixed(2) : '',
     t.categoryName || '',
     t.userNickname || '',
     `"${(t.note || '').replace(/"/g, '""')}"`,
@@ -206,6 +218,17 @@ onMounted(async () => {
     const [cats, usrs] = await Promise.all([getCategories(), getUsers()])
     categoryOptions.value = buildCategoryTree(cats)
     users.value = usrs || []
+    // Build name lookup maps
+    if (cats && cats.length) {
+      const cm = {}; const um = {}
+      for (const c of cats) cm[c.id] = c.name
+      catNameMap.value = cm
+    }
+    if (usrs && usrs.length) {
+      const um = {}
+      for (const u of usrs) um[u.id] = u.nickname
+      userNameMap.value = um
+    }
   } catch (e) {
     console.error('Failed to load filter options:', e)
   }
