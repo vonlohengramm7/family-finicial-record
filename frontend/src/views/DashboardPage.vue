@@ -79,8 +79,11 @@
 
 <script setup>
 import { ref, onMounted, nextTick, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { getStatsByCategory, getStatsByUser, getMonthlyStats, getCategories, getUsers } from '../api/index.js'
 import * as echarts from 'echarts'
+
+const router = useRouter()
 
 const currentMonth = ref(new Date().toISOString().slice(0, 7))
 
@@ -151,16 +154,25 @@ function renderCharts() {
     return big
   }
 
-  // Category pie
+  // Category pie (expense)
   if (categoryChartRef.value) {
     if (!categoryChart) {
       categoryChart = echarts.init(categoryChartRef.value)
+      categoryChart.on('click', (params) => {
+        if (params.data && params.data.categoryId) {
+          const [y, m] = currentMonth.value.split('-').map(Number)
+          const sd = `${currentMonth.value}-01`
+          const ed = new Date(y, m, 0).toISOString().slice(0, 10)
+          router.push(`/transactions?categoryId=${params.data.categoryId}&startDate=${sd}&endDate=${ed}`)
+        }
+      })
     }
     let catItems = categoryStats.value
-      .filter(item => (Number(item.total) || Number(item.expense) || 0) < 0) // expenses only
+      .filter(item => (Number(item.total) || Number(item.expense) || 0) < 0)
       .map(item => ({
-        name: (window.__catNameMap || {})[item.categoryId] || (item.categoryName || item.name || `分类${item.categoryId}`),
+        name: (window.__catNameMap || {})[item.categoryId] || `分类${item.categoryId}`,
         value: Math.abs(Number(item.total) || Number(item.expense) || 0),
+        categoryId: item.categoryId,
       }))
     catItems.sort((a, b) => b.value - a.value)
     catItems = groupSmall(catItems)
@@ -183,12 +195,21 @@ function renderCharts() {
   if (incomeChartRef.value) {
     if (!incomeChart) {
       incomeChart = echarts.init(incomeChartRef.value)
+      incomeChart.on('click', (params) => {
+        if (params.data && params.data.categoryId) {
+          const [y, m] = currentMonth.value.split('-').map(Number)
+          const sd = `${currentMonth.value}-01`
+          const ed = new Date(y, m, 0).toISOString().slice(0, 10)
+          router.push(`/transactions?categoryId=${params.data.categoryId}&startDate=${sd}&endDate=${ed}`)
+        }
+      })
     }
     let incomeCatItems = categoryStats.value
       .filter(item => (Number(item.total) || Number(item.income) || 0) > 0)
       .map(item => ({
-        name: (window.__catNameMap || {})[item.categoryId] || (item.categoryName || item.name || `分类${item.categoryId}`),
+        name: (window.__catNameMap || {})[item.categoryId] || `分类${item.categoryId}`,
         value: Math.abs(Number(item.total) || Number(item.income) || 0),
+        categoryId: item.categoryId,
       }))
     incomeCatItems.sort((a, b) => b.value - a.value)
     incomeCatItems = groupSmall(incomeCatItems)
@@ -210,10 +231,19 @@ function renderCharts() {
   if (userChartRef.value) {
     if (!userChart) {
       userChart = echarts.init(userChartRef.value)
+      userChart.on('click', (params) => {
+        if (params.data && params.data.userId) {
+          const [y, m] = currentMonth.value.split('-').map(Number)
+          const sd = `${currentMonth.value}-01`
+          const ed = new Date(y, m, 0).toISOString().slice(0, 10)
+          router.push(`/transactions?userId=${params.data.userId}&startDate=${sd}&endDate=${ed}`)
+        }
+      })
     }
     let userItems = (userStats.value || []).map(item => ({
-      name: (window.__userNameMap || {})[item.userId] || item.nickname || item.userName || `用户${item.userId}`,
+      name: (window.__userNameMap || {})[item.userId] || `用户${item.userId}`,
       value: Math.abs(Number(item.expense || item.total || 0)),
+      userId: item.userId,
     }))
     userItems.sort((a, b) => b.value - a.value)
     userItems = groupSmall(userItems, 0.01)

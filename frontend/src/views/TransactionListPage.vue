@@ -80,8 +80,11 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { getTransactions, deleteTransaction, getCategories, getUsers } from '../api/index.js'
 import { ElMessage } from 'element-plus'
+
+const route = useRoute()
 
 const loading = ref(false)
 const transactions = ref([])
@@ -214,6 +217,13 @@ function exportCSV() {
 }
 
 onMounted(async () => {
+  // Read query params from drill-down navigation
+  const q = route.query
+  if (q.categoryId) filters.categoryId = Number(q.categoryId)
+  if (q.userId) filters.userId = Number(q.userId)
+  if (q.startDate && q.endDate) {
+    dateRange.value = [q.startDate, q.endDate]
+  }
   try {
     const [cats, usrs] = await Promise.all([getCategories(), getUsers()])
     categoryOptions.value = buildCategoryTree(cats)

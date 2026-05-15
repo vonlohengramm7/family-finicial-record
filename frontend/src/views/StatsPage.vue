@@ -121,9 +121,12 @@
 
 <script setup>
 import { ref, reactive, onMounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { getStatsByCategory, getStatsByUser, getMonthlyStats, getCategories, getUsers } from '../api/index.js'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
+
+const router = useRouter()
 
 const period = ref('month')
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
@@ -232,26 +235,30 @@ async function loadStats() {
     }
 
     await nextTick()
-    renderChart(nameMap)
+    renderChart(nameMap, range)
   } catch (e) {
     console.error('Failed to load stats:', e)
     ElMessage.error('加载统计数据失败')
   }
 }
 
-function renderChart(nameMap = {}) {
+function renderChart(nameMap = {}, range = {}) {
   if (!catChartRef.value) return
   if (!catChart) {
     catChart = echarts.init(catChartRef.value)
+    catChart.on('click', (params) => {
+      if (params.data && params.data.categoryId) {
+        router.push(`/transactions?categoryId=${params.data.categoryId}&startDate=${range.startDate || ''}&endDate=${range.endDate || ''}`)
+      }
+    })
   }
-
-  console.log('nameMap keys:', Object.keys(nameMap).length, 'catStats:', categoryStats.value.length)
 
   let items = categoryStats.value
     .filter(item => (Number(item.total) || 0) < 0) // expenses only
     .map(item => ({
       name: nameMap[item.categoryId] || `分类${item.categoryId}`,
       value: Math.abs(Number(item.total) || 0),
+      categoryId: item.categoryId,
     }))
   items.sort((a, b) => b.value - a.value)
 
