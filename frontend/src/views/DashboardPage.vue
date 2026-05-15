@@ -136,7 +136,7 @@ async function loadData() {
 
 function renderCharts() {
   // Helper: group small items into "其他"
-  function groupSmall(items, threshold = 0.05) {
+  function groupSmall(items, threshold = 0.10) {
     if (items.length <= 5) return items
     const total = items.reduce((s, i) => s + i.value, 0)
     const big = []
@@ -246,7 +246,7 @@ function renderCharts() {
       userId: item.userId,
     }))
     userItems.sort((a, b) => b.value - a.value)
-    userItems = groupSmall(userItems, 0.01)
+    userItems = groupSmall(userItems, 0.10)
     userChart.setOption({
       tooltip: { trigger: 'item', formatter: (p) => `${p.name}: ¥${Number(p.value).toFixed(2)}` },
       legend: { bottom: 0 },

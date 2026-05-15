@@ -265,7 +265,7 @@ function renderChart(nameMap = {}, range = {}) {
     const big = []
     let otherVal = 0
     for (const item of items) {
-      if (item.value / total >= 0.05) {
+      if (item.value / total >= 0.10) {
         big.push(item)
       } else {
         otherVal += item.value
