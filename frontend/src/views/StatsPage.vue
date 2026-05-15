@@ -259,19 +259,22 @@ function renderChart(nameMap = {}, range = {}) {
     }))
   items.sort((a, b) => b.value - a.value)
 
-  // Group small items (< 5%)
+  // Group smallest items into "其他" so that "其他" ≤ 10%
   if (items.length > 5) {
     const total = items.reduce((s, i) => s + i.value, 0)
+    const sorted = [...items].sort((a, b) => b.value - a.value)
+    let cum = 0
     const big = []
-    let otherVal = 0
-    for (const item of items) {
-      if (item.value / total >= 0.10) {
+    for (const item of sorted) {
+      if (cum + item.value <= total * 0.90 || big.length === 0) {
         big.push(item)
+        cum += item.value
       } else {
-        otherVal += item.value
+        break
       }
     }
-    if (otherVal > 0) big.push({ name: '其他', value: otherVal })
+    const otherVal = total - cum
+    if (otherVal > 0 && big.length < sorted.length) big.push({ name: '其他', value: otherVal })
     items = big
   }
 

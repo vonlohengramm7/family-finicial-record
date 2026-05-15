@@ -135,20 +135,23 @@ async function loadData() {
 }
 
 function renderCharts() {
-  // Helper: group small items into "其他"
-  function groupSmall(items, threshold = 0.10) {
+  // Helper: group smallest items into "其他" so that "其他" itself ≤ 10%
+  function groupSmall(items) {
     if (items.length <= 5) return items
     const total = items.reduce((s, i) => s + i.value, 0)
+    const sorted = [...items].sort((a, b) => b.value - a.value)
+    let cum = 0
     const big = []
-    let otherVal = 0
-    for (const item of items) {
-      if (item.value / total >= threshold) {
+    for (const item of sorted) {
+      if (cum + item.value <= total * 0.90 || big.length === 0) {
         big.push(item)
+        cum += item.value
       } else {
-        otherVal += item.value
+        break
       }
     }
-    if (otherVal > 0) {
+    const otherVal = total - cum
+    if (otherVal > 0 && big.length < sorted.length) {
       big.push({ name: '其他', value: otherVal })
     }
     return big
@@ -246,7 +249,7 @@ function renderCharts() {
       userId: item.userId,
     }))
     userItems.sort((a, b) => b.value - a.value)
-    userItems = groupSmall(userItems, 0.10)
+    userItems = groupSmall(userItems)
     userChart.setOption({
       tooltip: { trigger: 'item', formatter: (p) => `${p.name}: ¥${Number(p.value).toFixed(2)}` },
       legend: { bottom: 0 },
