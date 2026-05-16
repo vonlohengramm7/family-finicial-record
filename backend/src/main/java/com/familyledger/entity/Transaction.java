@@ -32,4 +32,7 @@ public class Transaction {
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
+
+    /** 是否已计入现金位置（0=未结算，1=已结算） */
+    private Boolean cashSettled;
 }
