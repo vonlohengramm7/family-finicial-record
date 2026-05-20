@@ -4,7 +4,7 @@
 
     <el-row :gutter="20">
       <!-- Category management -->
-      <el-col :span="14">
+      <el-col :xs="24" :sm="14">
         <el-card shadow="hover">
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -23,17 +23,17 @@
             default-expand-all
             :tree-props="{ children: 'children' }"
           >
-            <el-table-column prop="name" label="分类名称" min-width="160">
+            <el-table-column prop="name" label="分类名称" min-width="120">
               <template #default="{ row }">
                 <span>{{ row.icon || '' }} {{ row.name }}</span>
-                <el-tag size="small" type="success" effect="plain" v-if="!row.parentId" style="margin-left: 8px;">大类</el-tag>
-                <el-tag size="small" type="warning" effect="plain" v-if="!row.isActive && row.isActive === false" style="margin-left: 4px;">已停用</el-tag>
+                <el-tag size="small" type="success" effect="plain" v-if="!row.parentId" style="margin-left: 4px; font-size: 10px;">大类</el-tag>
+                <el-tag size="small" type="warning" effect="plain" v-if="!row.isActive && row.isActive === false" style="margin-left: 2px; font-size: 10px;">停</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="sortOrder" label="排序" width="60" />
-            <el-table-column label="操作" width="170" fixed="right">
+            <el-table-column prop="sortOrder" label="排序" width="50" />
+            <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
-                <el-button v-if="!row.parentId" type="primary" size="small" text @click="showAddDialog(row)">+ 子类</el-button>
+                <el-button v-if="!row.parentId" type="primary" size="small" text @click="showAddDialog(row)">+子</el-button>
                 <el-button type="warning" size="small" text @click="showEditDialog(row)">编辑</el-button>
                 <el-popconfirm title="确定删除此分类？" @confirm="handleDeleteCategory(row.id)">
                   <template #reference>
@@ -47,7 +47,7 @@
       </el-col>
 
       <!-- Data import / future -->
-      <el-col :span="10">
+      <el-col :xs="24" :sm="10">
         <el-card shadow="hover">
           <template #header>数据导入</template>
           <p style="color: #909399; font-size: 14px;">
