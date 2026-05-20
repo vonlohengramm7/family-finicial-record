@@ -29,12 +29,16 @@
             v-model="form.amount"
             :precision="2"
             :step="10"
-            :min="-999999.99"
+            :min="0"
             :max="999999.99"
             style="width: 100%;"
-            placeholder="正数=收入，负数=支出"
+            placeholder="输入金额"
           />
-          <div style="font-size: 12px; color: #909399; margin-top: 4px;">正数为收入，负数为支出</div>
+          <div style="font-size: 12px; margin-top: 4px;">
+            <span v-if="selectedCategoryIsIncome" style="color: #67c23a;">💹 收入分类，金额为正</span>
+            <span v-else-if="selectedCategoryIsExpense" style="color: #f56c6c;">💸 支出分类，金额自动转为负</span>
+            <span v-else style="color: #909399;">选择分类后自动确定正负</span>
+          </div>
         </el-form-item>
 
         <el-form-item label="分类" prop="categoryId">
@@ -69,7 +73,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { createTransaction, getCategories, getUsers } from '../api/index.js'
 import { ElMessage } from 'element-plus'
 
@@ -85,6 +89,28 @@ const form = reactive({
   note: '',
 })
 
+// 分类的平面映射：categoryId → parentName
+const catParentMap = ref({})
+
+const selectedCategoryIsIncome = computed(() => {
+  return form.categoryId && catParentMap.value[form.categoryId] === '收入'
+})
+const selectedCategoryIsExpense = computed(() => {
+  return form.categoryId && catParentMap.value[form.categoryId] && catParentMap.value[form.categoryId] !== '收入'
+})
+
+// 当分类变化时，自动修正金额符号
+watch(() => form.categoryId, () => {
+  if (form.amount === null || form.amount === undefined || form.amount === 0) return
+  const isIncome = selectedCategoryIsIncome.value
+  const isExpense = selectedCategoryIsExpense.value
+  if (isIncome && form.amount < 0) {
+    form.amount = Math.abs(form.amount)
+  } else if (isExpense && form.amount > 0) {
+    form.amount = -Math.abs(form.amount)
+  }
+})
+
 const rules = {
   transDate: [{ required: true, message: '请选择日期', trigger: 'change' }],
   amount: [{ required: true, message: '请输入金额', trigger: 'blur' }],
@@ -98,9 +124,21 @@ const users = ref([])
 async function loadFormData() {
   try {
     const [cats, usrs] = await Promise.all([getCategories(), getUsers()])
-    // Build cascader tree from flat categories
-    // Expected: cats is an array where each item has { id, name, parentId, children? }
-    // If backend returns nested structure, use as-is; otherwise build tree
+    // Build parent name map
+    const parentMap = {}
+    const parentNames = {}
+    for (const c of cats) {
+      if (!c.parentId) {
+        parentNames[c.id] = c.name  // parent category
+      }
+    }
+    for (const c of cats) {
+      if (c.parentId && parentNames[c.parentId]) {
+        parentMap[c.id] = parentNames[c.parentId]
+      }
+    }
+    catParentMap.value = parentMap
+    // Build cascader tree
     categoryOptions.value = buildCategoryTree(cats.filter(c => c.isActive !== false))
     users.value = usrs || []
     if (users.value.length > 0 && !form.userId) {
@@ -134,12 +172,21 @@ async function submitForm() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
+  // 双重校验：确保金额符号与分类一致
+  let amount = form.amount
+  const isIncome = selectedCategoryIsIncome.value
+  if (isIncome && amount < 0) {
+    amount = Math.abs(amount)
+  } else if (!isIncome && amount > 0) {
+    amount = -Math.abs(amount)
+  }
+
   submitting.value = true
   try {
     const payload = {
       userId: form.userId,
       categoryId: form.categoryId,
-      amount: form.amount,
+      amount,
       transDate: form.transDate,
       transTime: form.transTime || '00:00:00',
       note: form.note || '',

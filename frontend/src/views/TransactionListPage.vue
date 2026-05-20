@@ -80,25 +80,39 @@
       </el-form-item>
     </el-card>
 
-    <!-- Table -->
+    <!-- Transaction Cards -->
     <el-card shadow="hover">
-      <el-table :data="transactions" v-loading="loading" stripe border style="width: 100%">
-        <el-table-column prop="transDate" label="日期" width="110" />
-        <el-table-column prop="transTime" label="时间" width="80" />
-        <el-table-column prop="amount" label="金额" width="120" :formatter="fmtAmount" />
-        <el-table-column prop="categoryName" label="分类" width="120" />
-        <el-table-column prop="userNickname" label="归属人" width="120" />
-        <el-table-column prop="note" label="备注" min-width="200" show-overflow-tooltip />
-        <el-table-column label="操作" width="100" :fixed="isMobile ? false : 'right'">
-          <template #default="{ row }">
-            <el-popconfirm title="确定删除这条记录？" @confirm="handleDelete(row.id)">
-              <template #reference>
-                <el-button type="danger" size="small" text>删除</el-button>
-              </template>
-            </el-popconfirm>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-loading="loading" class="tx-list">
+        <div v-for="tx in transactions" :key="tx.id" class="tx-card" @click="clickRow(tx)">
+          <!-- Top row: time + amount -->
+          <div class="tx-top">
+            <div class="tx-time">
+              <span class="tx-date">{{ tx.transDate }}</span>
+              <span v-if="tx.transTime" class="tx-time-dot">{{ tx.transTime.slice(0, 5) }}</span>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount" :class="tx.amount >= 0 ? 'tx-income' : 'tx-expense'">
+                {{ tx.amount >= 0 ? '+' : '-' }}¥{{ Math.abs(tx.amount).toFixed(2) }}
+              </span>
+              <el-popconfirm title="确定删除这条记录？" @confirm.stop="handleDelete(tx.id)">
+                <template #reference>
+                  <el-button class="tx-del-btn" type="danger" size="small" text @click.stop>删除</el-button>
+                </template>
+              </el-popconfirm>
+            </div>
+          </div>
+          <!-- Bottom row: tags + note -->
+          <div class="tx-bottom">
+            <span class="tx-meta">
+              <el-tag size="small" effect="plain" class="tx-tag">{{ tx.categoryName || '未分类' }}</el-tag>
+              <el-tag v-if="tx.userNickname" size="small" type="info" effect="plain" class="tx-tag">{{ tx.userNickname }}</el-tag>
+            </span>
+            <span v-if="tx.note" class="tx-note" :title="tx.note">{{ tx.note }}</span>
+          </div>
+        </div>
+        <!-- Empty -->
+        <el-empty v-if="!loading && transactions.length === 0" description="暂无交易记录" />
+      </div>
 
       <!-- Pagination -->
       <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
@@ -120,11 +134,12 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getTransactions, deleteTransaction, getCategories, getUsers } from '../api/index.js'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
+const router = useRouter()
 
 const windowWidth = ref(window.innerWidth)
 const isMobile = computed(() => windowWidth.value < 768)
@@ -196,11 +211,6 @@ const categoryOptions = ref([])
 const users = ref([])
 const catNameMap = ref({})
 const userNameMap = ref({})
-
-function fmtAmount(row) {
-  const val = Number(row.amount) || 0
-  return `¥${val.toFixed(2)}`
-}
 
 function enrichTransactions(list) {
   const cm = catNameMap.value
@@ -292,6 +302,10 @@ function resetFilters() {
   loadData()
 }
 
+function clickRow(tx) {
+  // 在手机上点击整行可查看详情或编辑（预留）
+}
+
 async function handleDelete(id) {
   try {
     await deleteTransaction(id)
@@ -357,3 +371,115 @@ onUnmounted(() => {
   window.removeEventListener('resize', onResize)
 })
 </script>
+
+<style scoped>
+.tx-list {
+  min-height: 100px;
+}
+
+.tx-card {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 14px 0;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.tx-card:first-child {
+  padding-top: 0;
+}
+.tx-card:hover {
+  background-color: #fafafa;
+  margin: 0 -12px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-radius: 6px;
+}
+
+/* Top row: time left, amount+delete right */
+.tx-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.tx-time {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.tx-date {
+  font-size: 14px;
+  color: #303133;
+  font-weight: 500;
+}
+.tx-time-dot {
+  font-size: 12px;
+  color: #909399;
+}
+
+.tx-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tx-amount {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+.tx-income {
+  color: #67c23a;
+}
+.tx-expense {
+  color: #f56c6c;
+}
+
+.tx-del-btn {
+  flex-shrink: 0;
+}
+
+/* Bottom row: tags + note */
+.tx-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tx-meta {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.tx-tag {
+  pointer-events: none;
+}
+
+.tx-note {
+  font-size: 13px;
+  color: #606266;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Mobile adjustments */
+@media screen and (max-width: 767px) {
+  .tx-card {
+    padding: 12px 0;
+  }
+  .tx-amount {
+    font-size: 16px;
+  }
+  .tx-date {
+    font-size: 13px;
+  }
+  .tx-note {
+    font-size: 12px;
+  }
+}
+</style>
