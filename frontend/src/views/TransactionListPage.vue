@@ -4,18 +4,50 @@
 
     <!-- Filters -->
     <el-card shadow="hover" style="margin-bottom: 16px;">
-      <el-form :model="filters" inline>
+      <el-form :model="filters" :inline="!isMobile">
         <el-form-item label="日期">
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DD"
-            style="width: 260px;"
-          />
+          <template v-if="isMobile">
+            <div style="display: flex; gap: 8px; width: 100%;">
+              <el-date-picker
+                v-model="dateRangeStart"
+                type="date"
+                placeholder="开始日期"
+                value-format="YYYY-MM-DD"
+                style="flex: 1;"
+              />
+              <el-date-picker
+                v-model="dateRangeEnd"
+                type="date"
+                placeholder="结束日期"
+                value-format="YYYY-MM-DD"
+                style="flex: 1;"
+              />
+            </div>
+          </template>
+          <template v-else>
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              value-format="YYYY-MM-DD"
+              style="width: 260px;"
+            />
+          </template>
         </el-form-item>
+        <el-form-item label="关键词">
+          <el-input v-model="filters.keyword" placeholder="搜索备注..." clearable :style="{width: isMobile ? '100%' : '180px'}" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="search" :size="isMobile ? 'small' : 'default'">搜索</el-button>
+          <el-button @click="resetFilters" :size="isMobile ? 'small' : 'default'">重置</el-button>
+          <el-button v-if="isMobile" :size="'small'" @click="showMobileFilters = !showMobileFilters">
+            {{ showMobileFilters ? '收起筛选' : '更多筛选' }}
+          </el-button>
+        </el-form-item>
+      </el-form>
+      <el-form v-if="!isMobile || showMobileFilters" :model="filters" :inline="!isMobile">
         <el-form-item label="分类">
           <el-cascader
             v-model="filters.categoryPath"
@@ -23,29 +55,29 @@
             :props="{ value: 'id', label: 'name', children: 'children', checkStrictly: false }"
             placeholder="全部分类"
             clearable
-            style="width: 200px;"
+            :style="{width: isMobile ? '100%' : '200px'}"
             @change="onCategoryChange"
           />
         </el-form-item>
         <el-form-item label="归属人">
-          <el-select v-model="filters.userId" placeholder="全部" clearable style="width: 140px;">
+          <el-select v-model="filters.userId" placeholder="全部" clearable :style="{width: isMobile ? '100%' : '140px'}">
             <el-option v-for="u in users" :key="u.id" :label="u.nickname" :value="u.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="金额">
-          <el-input-number v-model="filters.minAmount" placeholder="最低" :precision="0" style="width: 110px;" controls-position="right" />
-          <span style="margin: 0 4px; color: #909399;">至</span>
-          <el-input-number v-model="filters.maxAmount" placeholder="最高" :precision="0" style="width: 110px;" controls-position="right" />
+          <div :style="{display: 'flex', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: '4px', alignItems: 'center'}">
+            <el-input-number v-model="filters.minAmount" placeholder="最低" :precision="0" :style="{width: isMobile ? '100%' : '110px'}" controls-position="right" />
+            <span style="margin: 0 4px; color: #909399;">至</span>
+            <el-input-number v-model="filters.maxAmount" placeholder="最高" :precision="0" :style="{width: isMobile ? '100%' : '110px'}" controls-position="right" />
+          </div>
         </el-form-item>
-        <el-form-item label="关键词">
-          <el-input v-model="filters.keyword" placeholder="搜索备注..." clearable style="width: 180px;" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="search">搜索</el-button>
-          <el-button @click="resetFilters">重置</el-button>
+        <el-form-item v-if="!isMobile">
           <el-button @click="exportCSV">导出 CSV</el-button>
         </el-form-item>
       </el-form>
+      <el-form-item v-if="isMobile && showMobileFilters" style="margin-top: 8px;">
+        <el-button @click="exportCSV" size="small">导出 CSV</el-button>
+      </el-form-item>
     </el-card>
 
     <!-- Table -->
@@ -57,7 +89,7 @@
         <el-table-column prop="categoryName" label="分类" width="120" />
         <el-table-column prop="userNickname" label="归属人" width="120" />
         <el-table-column prop="note" label="备注" min-width="200" show-overflow-tooltip />
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" width="100" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
             <el-popconfirm title="确定删除这条记录？" @confirm="handleDelete(row.id)">
               <template #reference>
@@ -76,6 +108,8 @@
           :page-sizes="[10, 20, 50, 100]"
           :total="total"
           layout="total, sizes, prev, pager, next"
+          small
+          :size="isMobile ? 'small' : 'default'"
           @size-change="loadData"
           @current-change="loadData"
         />
@@ -85,12 +119,20 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getTransactions, deleteTransaction, getCategories, getUsers } from '../api/index.js'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
+
+const windowWidth = ref(window.innerWidth)
+const isMobile = computed(() => windowWidth.value < 768)
+const showMobileFilters = ref(false)
+
+function onResize() {
+  windowWidth.value = window.innerWidth
+}
 
 const loading = ref(false)
 const transactions = ref([])
@@ -99,6 +141,8 @@ const page = ref(1)
 const pageSize = ref(20)
 
 const dateRange = ref(null)
+const dateRangeStart = ref(null)
+const dateRangeEnd = ref(null)
 
 const filters = reactive({
   userId: null,
@@ -201,6 +245,12 @@ async function loadData() {
       params.startDate = dateRange.value[0]
       params.endDate = dateRange.value[1]
     }
+    if (isMobile.value && dateRangeStart.value) {
+      params.startDate = dateRangeStart.value
+    }
+    if (isMobile.value && dateRangeEnd.value) {
+      params.endDate = dateRangeEnd.value
+    }
 
     const res = await getTransactions(params)
     // API may return paginated { records, total } or plain array
@@ -236,6 +286,8 @@ function resetFilters() {
   filters.minAmount = null
   filters.maxAmount = null
   dateRange.value = null
+  dateRangeStart.value = null
+  dateRangeEnd.value = null
   page.value = 1
   loadData()
 }
@@ -272,6 +324,7 @@ function exportCSV() {
 }
 
 onMounted(async () => {
+  window.addEventListener('resize', onResize)
   // Read query params from drill-down navigation
   const q = route.query
   if (q.categoryId) filters.categoryId = Number(q.categoryId)
@@ -281,7 +334,7 @@ onMounted(async () => {
   }
   try {
     const [cats, usrs] = await Promise.all([getCategories(), getUsers()])
-    categoryOptions.value = buildCategoryTree(cats)
+    categoryOptions.value = buildCategoryTree(cats.filter(c => c.isActive !== false))
     users.value = usrs || []
     // Build name lookup maps
     if (cats && cats.length) {
@@ -298,5 +351,9 @@ onMounted(async () => {
     console.error('Failed to load filter options:', e)
   }
   loadData()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize)
 })
 </script>

@@ -1,0 +1,130 @@
+/* ==========================================
+   移动端响应式全局样式
+   屏幕宽度 < 768px
+   ========================================== */
+
+/* --- 底部导航栏（移动端） --- */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  height: 56px;
+  background: #fff;
+  border-top: 1px solid #e6e6e6;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.mobile-bottom-nav .bottom-nav-menu {
+  display: flex !important;
+  height: 100% !important;
+  border-bottom: none !important;
+  justify-content: space-around;
+}
+
+.mobile-bottom-nav .bottom-nav-menu .el-menu-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100% !important;
+  line-height: 1.2 !important;
+  padding: 4px 0 !important;
+  font-size: 11px;
+  gap: 2px;
+  border-bottom: none !important;
+}
+
+.mobile-bottom-nav .bottom-nav-menu .el-menu-item .el-icon {
+  font-size: 22px;
+  margin-right: 0 !important;
+}
+
+.mobile-bottom-nav .bottom-nav-menu .el-menu-item.is-active {
+  color: #409eff !important;
+  border-bottom: none !important;
+}
+
+/* --- 移动端主内容区底部留白 --- */
+.mobile-main-padding {
+  padding-bottom: 56px !important;
+}
+
+/* --- 响应式：表格水平滚动 --- */
+@media screen and (max-width: 767px) {
+  /* 移除 display:block 和 overflow-x 避免破坏 el-table 表头/表体同步滚动 */
+  .el-table .el-table__body-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .el-table .cell {
+    white-space: nowrap;
+  }
+}
+
+/* --- 响应式：卡片内边距缩小 --- */
+@media screen and (max-width: 767px) {
+  .el-card__body {
+    padding: 12px !important;
+  }
+
+  .page-container {
+    padding: 12px !important;
+    margin: 0 !important;
+  }
+
+  .page-container .el-card {
+    margin-bottom: 12px;
+  }
+}
+
+/* --- 响应式：表单与按钮适配 --- */
+@media screen and (max-width: 767px) {
+  .el-form-item {
+    margin-bottom: 16px;
+  }
+
+  .el-form-item__label {
+    font-size: 13px;
+  }
+
+  .el-dialog {
+    width: 92% !important;
+    max-width: 92% !important;
+  }
+
+  .el-message-box {
+    width: 85% !important;
+  }
+}
+
+/* --- 响应式：统计卡片网格 --- */
+@media screen and (max-width: 767px) {
+  .stat-cards-container {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .stat-value {
+    font-size: 22px !important;
+  }
+
+  .chart-container {
+    height: 250px !important;
+  }
+}
+
+/* --- 响应式：头部标题缩小 --- */
+@media screen and (max-width: 767px) {
+  .el-header {
+    padding: 0 12px !important;
+    height: 48px !important;
+  }
+
+  .el-header span[style*="font-size: 16px"] {
+    font-size: 14px !important;
+  }
+}

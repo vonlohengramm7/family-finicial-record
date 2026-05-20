@@ -101,7 +101,7 @@ async function loadFormData() {
     // Build cascader tree from flat categories
     // Expected: cats is an array where each item has { id, name, parentId, children? }
     // If backend returns nested structure, use as-is; otherwise build tree
-    categoryOptions.value = buildCategoryTree(cats)
+    categoryOptions.value = buildCategoryTree(cats.filter(c => c.isActive !== false))
     users.value = usrs || []
     if (users.value.length > 0 && !form.userId) {
       form.userId = users.value[0].id

@@ -10,25 +10,25 @@
         placeholder="选择月份"
         value-format="YYYY-MM"
         @change="loadData"
-        style="width: 160px;"
+        :style="{width: isMobile ? '100%' : '160px'}"
       />
     </div>
 
     <!-- Summary cards -->
     <el-row :gutter="16" style="margin-bottom: 20px;">
-      <el-col :span="8">
+      <el-col :xs="24" :sm="8">
         <el-card shadow="hover">
           <div class="stat-label">本月总支出</div>
           <div class="stat-value" style="color: #e74c3c;">¥{{ formatMoney(summary.expense) }}</div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :xs="24" :sm="8">
         <el-card shadow="hover">
           <div class="stat-label">本月总收入</div>
           <div class="stat-value" style="color: #27ae60;">¥{{ formatMoney(summary.income) }}</div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :xs="24" :sm="8">
         <el-card shadow="hover">
           <div class="stat-label">结余</div>
           <div class="stat-value" :style="{ color: summary.balance >= 0 ? '#27ae60' : '#e74c3c' }">
@@ -40,10 +40,10 @@
 
     <el-row :gutter="16" style="margin-bottom: 20px;">
       <!-- Expense category pie -->
-      <el-col :span="12">
+      <el-col :xs="24" :sm="12">
         <el-card shadow="hover">
           <template #header>支出分类占比</template>
-          <div ref="categoryChartRef" class="chart-container" style="height: 350px;"></div>
+          <div ref="categoryChartRef" class="chart-container" :style="{height: isMobile ? '250px' : '350px'}"></div>
           <div v-if="categoryStats.filter(c => (c.total||c.expense||0) < 0).length === 0" style="text-align: center; color: #909399; padding: 60px 0;">
             暂无数据
           </div>
@@ -51,10 +51,10 @@
       </el-col>
 
       <!-- Income category pie -->
-      <el-col :span="12">
+      <el-col :xs="24" :sm="12">
         <el-card shadow="hover">
           <template #header>收入分类占比</template>
-          <div ref="incomeChartRef" class="chart-container" style="height: 350px;"></div>
+          <div ref="incomeChartRef" class="chart-container" :style="{height: isMobile ? '250px' : '350px'}"></div>
           <div v-if="categoryStats.filter(c => (c.total||c.income||0) > 0).length === 0" style="text-align: center; color: #909399; padding: 60px 0;">
             暂无数据
           </div>
@@ -64,10 +64,10 @@
 
     <el-row :gutter="16">
       <!-- Per-user pie -->
-      <el-col :span="12" :offset="6">
+      <el-col :xs="{span:24,offset:0}" :sm="{span:12,offset:6}">
         <el-card shadow="hover">
           <template #header>各人支出占比</template>
-          <div ref="userChartRef" class="chart-container" style="height: 350px;"></div>
+          <div ref="userChartRef" class="chart-container" :style="{height: isMobile ? '250px' : '350px'}"></div>
           <div v-if="userStats.length === 0" style="text-align: center; color: #909399; padding: 60px 0;">
             暂无数据
           </div>
@@ -78,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, reactive } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { getStatsByCategory, getStatsByUser, getMonthlyStats, getCategories, getUsers } from '../api/index.js'
 import * as echarts from 'echarts'
@@ -98,6 +98,13 @@ const userChartRef = ref(null)
 let categoryChart = null
 let incomeChart = null
 let userChart = null
+
+const windowWidth = ref(window.innerWidth)
+const isMobile = computed(() => windowWidth.value < 768)
+
+function onResize() {
+  windowWidth.value = window.innerWidth
+}
 
 function formatMoney(val) {
   const num = Number(val) || 0
@@ -266,6 +273,7 @@ function renderCharts() {
 }
 
 onMounted(async () => {
+  window.addEventListener('resize', onResize)
   // Preload category lookup map for chart labels
   try {
     const catList = await getCategories()
@@ -287,5 +295,9 @@ onMounted(async () => {
     }
   } catch (_) {}
   loadData()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize)
 })
 </script>

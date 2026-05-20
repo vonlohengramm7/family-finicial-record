@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -52,6 +53,9 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     public Transaction create(Transaction transaction) {
         transaction.setId(null);
+        if (transaction.getTransTime() == null) {
+            transaction.setTransTime(LocalTime.now());
+        }
         transactionMapper.insert(transaction);
         return transaction;
     }
@@ -72,6 +76,9 @@ public class TransactionServiceImpl implements TransactionService {
     public void batchCreate(List<Transaction> transactions) {
         for (Transaction t : transactions) {
             t.setId(null);
+            if (t.getTransTime() == null) {
+                t.setTransTime(LocalTime.now());
+            }
             transactionMapper.insert(t);
         }
     }

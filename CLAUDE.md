@@ -13,7 +13,7 @@
 | ORM | **MyBatis-Plus 或 JPA 二选一**，不可混用 |
 | 数据库 | **MySQL 8.0+**（本地，仅 127.0.0.1）|
 | 前端 | **Vue 3 + Element Plus + Vite** |
-| 部署 | **`java -jar` + nginx/Vite dev server**，无 Docker/云服务 |
+| 部署 | ~~`java -jar` + nginx/Vite dev server~~ → **前端 Docker Desktop，后端 `java -jar`** 详见 frontend/Dockerfile |
 | 端口 | 后端 8080，前端 5173，MySQL 3306 |
 
 **不可：** Kotlin/Scala/Groovy/Python/Go 做后端。不可用 React/Angular。不可引入 Docker/K8s/Spring Cloud。
@@ -120,6 +120,6 @@ Controller (API) → Service (业务) → Mapper/Repository (数据) → MySQL
 
 ## 兼容性
 
-- 已有 API 路径不可随意修改，改前先更新 `plans/family-ledger-plan.md`
+- 已有 API 路径不可随意修改，改前先确认不影响现有前端调用
 - 数据库 DDL 变更必须写增量迁移脚本（`V2__xxx.sql`）
 - 前端仅支持 Chrome/Edge/Firefox 最新两版本，不兼容 IE11/Safari 旧版

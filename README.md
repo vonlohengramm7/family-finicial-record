@@ -41,13 +41,15 @@
 | 前端 | Vue 3, Element Plus, Vite, ECharts |
 | 数据库 | MySQL 8.0+（本地，127.0.0.1） |
 | ORM | MyBatis-Plus（自动字段映射，下划线→驼峰） |
-| 部署 | `java -jar` 后端 + Vite dev server 前端 |
+| 部署 | Docker Compose（前端 nginx + 后端 Spring Boot 各一容器） |
 
 ## 项目结构
 
 ```
 family-ledger/
+├── docker-compose.yml           # Docker Compose 编排
 ├── backend/                     # Spring Boot 后端
+│   ├── Dockerfile               # Java 17 容器镜像
 │   └── src/main/java/com/familyledger/
 │       ├── controller/          # API 控制器
 │       │   ├── TransactionController.java
@@ -68,6 +70,8 @@ family-ledger/
 │       │   └── AutoTransaction.java
 │       └── mapper/              # MyBatis-Plus Mapper
 ├── frontend/                    # Vue 3 前端
+│   ├── Dockerfile               # nginx 容器镜像
+│   └── nginx.conf               # 反向代理到后端 API
 │   └── src/
 │       ├── views/               # 页面组件
 │       │   ├── DashboardPage.vue
@@ -86,20 +90,14 @@ family-ledger/
 ## 快速开始
 
 ```bash
-# 1. 启动 MySQL
-sudo systemctl start mysql
+# 前置条件：MySQL 8.0+ 运行在本地 3306 端口
 
-# 2. 启动后端
-cd backend
-mvn spring-boot:run
+# 一键启动（后端 + 前端，Docker Compose）
+docker compose up -d
 
-# 3. 启动前端
-cd frontend
-npm install
-npm run dev
+# 打开 http://localhost:5175（或局域网 192.168.1.3:5175）即可使用
+# 后端 API 在 http://localhost:8080
 ```
-
-打开 `http://localhost:5173` 即可使用。
 
 ## 数据库
 
@@ -107,7 +105,7 @@ npm run dev
 - **端口**: 3306（本地）
 - **应用用户**: `hermes@127.0.0.1`（仅 SELECT/INSERT/UPDATE）
 - **金额**: `DECIMAL(12,2)`，正=收入，负=支出
-- **记录数**: 4,160+ 笔（覆盖 2024–2026 年）
+- **记录数**: 4,189+ 笔（覆盖 2024–2026 年）
 
 ## 分类体系
 
