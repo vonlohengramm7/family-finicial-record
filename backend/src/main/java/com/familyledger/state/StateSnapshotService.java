@@ -16,13 +16,20 @@ public class StateSnapshotService {
     private final StateSnapshotMapper mapper;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /** 首期统一键；DeepSeek 按 Key 维度使用 by_api_key:<stable-id>，绝不包含 Key 原文。 */
+    public static final String DEFAULT_SNAPSHOT_KEY = "overview";
+
     public StateSnapshotService(StateSnapshotMapper mapper) {
         this.mapper = mapper;
     }
 
     public StateDomainResponse store(String domain, StateDomainResponse result) {
+        return store(domain, DEFAULT_SNAPSHOT_KEY, result);
+    }
+
+    public StateDomainResponse store(String domain, String key, StateDomainResponse result) {
         StateSnapshot previous = mapper.selectOne(new LambdaQueryWrapper<StateSnapshot>()
-                .eq(StateSnapshot::getDomain, domain).eq(StateSnapshot::getSnapshotKey, "overview"));
+                .eq(StateSnapshot::getDomain, domain).eq(StateSnapshot::getSnapshotKey, key));
         if (result.getStatus() == StateStatus.UNAVAILABLE && previous != null && previous.getPayloadJson() != null) {
             previous.setStatus(StateStatus.STALE.name());
             previous.setErrorCode(result.getErrorCode());
@@ -33,7 +40,7 @@ public class StateSnapshotService {
         }
         StateSnapshot snapshot = previous == null ? new StateSnapshot() : previous;
         snapshot.setDomain(domain);
-        snapshot.setSnapshotKey("overview");
+        snapshot.setSnapshotKey(key);
         snapshot.setPayloadJson(write(result.getData()));
         snapshot.setSource(result.getSource());
         snapshot.setObservedAt(result.getObservedAt());
@@ -52,8 +59,12 @@ public class StateSnapshotService {
     }
 
     public StateDomainResponse get(String domain) {
+        return get(domain, DEFAULT_SNAPSHOT_KEY);
+    }
+
+    public StateDomainResponse get(String domain, String key) {
         StateSnapshot snapshot = mapper.selectOne(new LambdaQueryWrapper<StateSnapshot>()
-                .eq(StateSnapshot::getDomain, domain).eq(StateSnapshot::getSnapshotKey, "overview"));
+                .eq(StateSnapshot::getDomain, domain).eq(StateSnapshot::getSnapshotKey, key));
         if (snapshot == null) {
             return unavailable(domain, "SNAPSHOT_MISSING", "尚无成功快照，请手动刷新");
         }

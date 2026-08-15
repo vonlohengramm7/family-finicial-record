@@ -1,4 +1,4 @@
--- 家庭状态中枢快照表：仅保存可重建、已脱敏的聚合状态，不复制 transaction。
+-- 家庭状态中枢快照表：仅保存可重建、已脱敏的聚合状态，不复制任何账本主数据。
 -- 回滚：DROP TABLE IF EXISTS state_snapshot; 不影响既有账本事实表。
 CREATE TABLE IF NOT EXISTS state_snapshot (
     id BIGINT NOT NULL AUTO_INCREMENT,
