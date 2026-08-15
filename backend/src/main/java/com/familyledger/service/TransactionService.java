@@ -30,4 +30,7 @@ public interface TransactionService {
     List<Map<String, Object>> categoryStats(Long userId, LocalDate startDate, LocalDate endDate);
 
     List<Map<String, Object>> userStats(LocalDate startDate, LocalDate endDate);
+
+    /** 只读聚合：未结算（cash_settled=false）交易笔数，供状态中枢 recent_tx_health 使用。 */
+    long countUnsettled();
 }

@@ -28,10 +28,22 @@ K1 已交付并通过验收（证据见第 5 节）：
 | 域 domain | source 标识 | 真实采集路径 | 可读性证据（2026-08-15） | TTL |
 |---|---|---|---|---|
 | `finance` | `ledger-service:monthlyStats` | `TransactionService.monthlyStats`（只读服务聚合，不复制交易） | 账本 API HTTP 200（transactions total=4791、月统计 rows=1）；FinanceStateCollector FRESH | 900s |
+| `finance` | `ledger-service:transactions` | `TransactionService.list/count/countUnsettled`（只读服务聚合） | 本机实测：last tx 2026-08-15、近7日 42 笔、未结算 2 笔（family_ledger.transaction） | 900s |
+| `finance` | `ledger-service:auto-transactions` | `AutoTransactionService.listActive`（只读，`auto_transaction` is_active=1） | 本机实测：10 条记录、8 条生效（房贷/公积金/会员费等），下笔 2026-08-17 | 86400s |
+| `finance` | `family-assets:家庭资产.md` | 解析 `~/records/财产/家庭资产.md`（只读文件，不复制） | 本机实测可读：爸爸 210,594.03 + 妈妈 145,408.20 + 家庭共有 120,756 = 476,758.23；文件 mtime 作观测时间 | 86400s |
 | `codex` | `codex-usage-monitor` | 读取 `~/.hermes/data/gpt-plus-usage-state.json`（gpt-plus-usage-monitor.py 每小时 cron 6d9afacaa5ce 写入的快照文件，非直连 API） | 文件存在：`weekly_used_pct=24`、`last_check=2026-08-15 21:07`；session 字段允许为 null | 3600s |
 | `deepseek` | `deepseek-platform-api-export` | `deepseek-usage-query.py --date <当日> --by-key`（平台 cost API + export API） | 本机实测 exit 0：`source=api`、cost=3.12、按 Key 明细含模型/输入/输出/请求/费用；METADATA 块含 `gpt_plus_usage` 的须显式忽略（属 codex 域） | 86400s |
 | `baby` | `baby-daily-report:<文件名>` | `~/records/baby-daily-reports/daily-logs/YYYY-MM-DD.md`（当天优先，缺则回退最近日报标 stale） | 2026-08-15.md 存在（当日 12:28 修改）；健康总览 health-record.md、体重时间线 weight-timeline.md 均在 | 86400s |
 | `baby`（趋势） | `health-record.md` / `weight-timeline.md` | 同目录只读解析，失败仅置该子项 unavailable，不阻断今日卡片 | 文件存在；解析器有 fixture 测试 | 86400s |
+
+**finance 域数据载荷（t_5d7706ee 扩展，向后兼容）**：`data` 仍含 `month` 与 `monthlyStats`（`ledger-service:monthlyStats` 原样），并新增四个子快照对象，各自携带 `status/source/observedAt/freshUntil/error`：
+
+- `cashBalance.value`：`{month, income, expense, net, cumulativeNet}` — 当月收支净额与全量累计净额（账本只读聚合）
+- `portfolioValue.value`：`{asOf, total, byOwner{爸爸,妈妈,家庭共有}}` — 家庭资产文件小计（文件 mtime 作观测时间）
+- `recentTxHealth.value`：`{lastTxDate, last7dCount, unsettledCount}` — 最近交易日期、近7日笔数、未结算笔数
+- `autoTrade.value`：`{activeCount, nextRunDate}` — 生效中周期性交易概览
+
+子快照失败仅置自身 UNAVAILABLE（`ASSET_SOURCE_UNAVAILABLE`/`ASSET_PARSE_FAILED`/`AUTO_TRADE_SOURCE_UNAVAILABLE`/`FINANCE_SOURCE_UNAVAILABLE`），不伪造 0 余额、不拖垮整域；仅当全部子快照均不可用时期域状态为 UNAVAILABLE。
 
 **明确不可用（必须返回 unavailable，不得伪造）**：
 
@@ -84,6 +96,8 @@ K1 已交付并通过验收（证据见第 5 节）：
 - `DEEPSEEK_TIMEOUT` / `DEEPSEEK_SOURCE_UNAVAILABLE` / `DEEPSEEK_PARSE_FAILED`
 - `BABY_REPORT_MISSING` / `BABY_REPORT_PARSE_FAILED` / `TODAY_REPORT_MISSING`（回退最近日报时）
 - `FINANCE_SOURCE_UNAVAILABLE`
+- `ASSET_SOURCE_UNAVAILABLE` / `ASSET_PARSE_FAILED`（财务子快照 portfolioValue：资产文件缺失 / 无法解析）
+- `AUTO_TRADE_SOURCE_UNAVAILABLE`（财务子快照 autoTrade：auto_transaction 读取失败）
 
 错误摘要（reason）必须脱敏、面向用户；不得包含堆栈、路径、凭证或 Key 前缀。
 

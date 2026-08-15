@@ -188,6 +188,12 @@ public class TransactionServiceImpl implements TransactionService {
         return result;
     }
 
+    @Override
+    public long countUnsettled() {
+        return transactionMapper.selectCount(new LambdaQueryWrapper<Transaction>()
+                .eq(Transaction::getCashSettled, false));
+    }
+
     private LambdaQueryWrapper<Transaction> buildQueryWrapper(Long userId, Long categoryId,
                                                                List<Long> categoryIds,
                                                                LocalDate startDate, LocalDate endDate,
