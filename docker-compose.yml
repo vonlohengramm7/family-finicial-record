@@ -12,6 +12,11 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/family_ledger?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=hermes
       - SPRING_DATASOURCE_PASSWORD=hermes_ledger_2026
+      - FAMILY_STATE_CODEX_STATE_FILE=/family-state/codex/gpt-plus-usage-state.json
+      - FAMILY_STATE_BABY_DAILY_LOG_DIRECTORY=/family-state/baby-daily-logs
+    volumes:
+      - /home/vonlohengramm/.hermes/data/gpt-plus-usage-state.json:/family-state/codex/gpt-plus-usage-state.json:ro
+      - /home/vonlohengramm/records/baby-daily-reports/daily-logs:/family-state/baby-daily-logs:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
