@@ -13,9 +13,15 @@ services:
       - SPRING_DATASOURCE_USERNAME=hermes
       - SPRING_DATASOURCE_PASSWORD=hermes_ledger_2026
       - FAMILY_STATE_CODEX_STATE_FILE=/family-state/codex/gpt-plus-usage-state.json
+      - FAMILY_STATE_DEEPSEEK_COMMAND=HOME=/family-state/deepseek python3 /family-state/deepseek/deepseek-usage-query.py
+      - FAMILY_STATE_FINANCE_ASSET_FILE=/family-state/finance/家庭资产.md
       - FAMILY_STATE_BABY_DAILY_LOG_DIRECTORY=/family-state/baby-daily-logs
     volumes:
       - /home/vonlohengramm/.hermes/data/gpt-plus-usage-state.json:/family-state/codex/gpt-plus-usage-state.json:ro
+      - /home/vonlohengramm/.hermes/scripts/deepseek-usage-query.py:/family-state/deepseek/deepseek-usage-query.py:ro
+      - /home/vonlohengramm/.hermes/.deepseek-platform-credentials.json:/family-state/deepseek/.hermes/.deepseek-platform-credentials.json:ro
+      - /home/vonlohengramm/.hermes/state.db:/family-state/deepseek/.hermes/state.db:ro
+      - /home/vonlohengramm/records/财产/家庭资产.md:/family-state/finance/家庭资产.md:ro
       - /home/vonlohengramm/records/baby-daily-reports/daily-logs:/family-state/baby-daily-logs:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
