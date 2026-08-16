@@ -4,9 +4,11 @@ import AddPage from '../views/AddPage.vue'
 import TransactionListPage from '../views/TransactionListPage.vue'
 import StatsPage from '../views/StatsPage.vue'
 import SettingsPage from '../views/SettingsPage.vue'
+import FamilyStatusPage from '../views/FamilyStatusPage.vue'
 
 const routes = [
-  { path: '/', redirect: '/dashboard' },
+  { path: '/', redirect: '/family-status' },
+  { path: '/family-status', name: 'FamilyStatus', component: FamilyStatusPage, meta: { title: '家庭状态', icon: 'DataBoard' } },
   { path: '/dashboard', name: 'Dashboard', component: DashboardPage, meta: { title: '仪表盘', icon: 'DataBoard' } },
   { path: '/add', name: 'Add', component: AddPage, meta: { title: '记一笔', icon: 'EditPen' } },
   { path: '/transactions', name: 'Transactions', component: TransactionListPage, meta: { title: '交易列表', icon: 'List' } },

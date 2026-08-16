@@ -73,4 +73,10 @@ export function getStatsByUser(params) {
   return http.get('/stats/by-user', { params })
 }
 
+// ========== Family Status Hub ==========
+
+export function getFamilyStatus() {
+  return http.get('/family-status')
+}
+
 export default http

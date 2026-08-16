@@ -19,6 +19,7 @@
         router
         style="border-right: none"
       >
+        <el-menu-item index="/family-status"><el-icon><DataBoard /></el-icon><template #title>家庭状态</template></el-menu-item>
         <el-menu-item index="/dashboard"><el-icon><DataBoard /></el-icon><template #title>仪表盘</template></el-menu-item>
         <el-menu-item index="/add"><el-icon><EditPen /></el-icon><template #title>记一笔</template></el-menu-item>
         <el-menu-item index="/transactions"><el-icon><List /></el-icon><template #title>交易列表</template></el-menu-item>
@@ -45,36 +46,24 @@
     </el-container>
   </el-container>
 
-  <!-- Mobile Bottom Navigation (5 tabs, visible < 768px) -->
-  <div v-show="isMobile" class="mobile-bottom-nav">
-    <el-menu
-      :default-active="currentRoute"
-      mode="horizontal"
-      router
-      class="bottom-nav-menu"
-    >
-      <el-menu-item index="/dashboard">
-        <el-icon><DataBoard /></el-icon>
-        <template #title>仪表盘</template>
-      </el-menu-item>
-      <el-menu-item index="/add">
-        <el-icon><EditPen /></el-icon>
-        <template #title>记一笔</template>
-      </el-menu-item>
-      <el-menu-item index="/transactions">
-        <el-icon><List /></el-icon>
-        <template #title>交易列表</template>
-      </el-menu-item>
-      <el-menu-item index="/stats">
-        <el-icon><DataAnalysis /></el-icon>
-        <template #title>统计</template>
-      </el-menu-item>
-      <el-menu-item index="/settings">
-        <el-icon><Setting /></el-icon>
-        <template #title>管理</template>
-      </el-menu-item>
-    </el-menu>
-  </div>
+  <!-- Keep exactly five direct routes on mobile; Element Plus horizontal menus overflow into "more". -->
+  <nav v-show="isMobile" class="mobile-bottom-nav" aria-label="移动端主导航">
+    <router-link to="/family-status" class="bottom-nav-link" :class="{ 'is-active': currentRoute === '/family-status' }">
+      <el-icon><DataBoard /></el-icon><span>家庭状态</span>
+    </router-link>
+    <router-link to="/add" class="bottom-nav-link" :class="{ 'is-active': currentRoute === '/add' }">
+      <el-icon><EditPen /></el-icon><span>记一笔</span>
+    </router-link>
+    <router-link to="/transactions" class="bottom-nav-link" :class="{ 'is-active': currentRoute === '/transactions' }">
+      <el-icon><List /></el-icon><span>交易</span>
+    </router-link>
+    <router-link to="/stats" class="bottom-nav-link" :class="{ 'is-active': currentRoute === '/stats' }">
+      <el-icon><DataAnalysis /></el-icon><span>统计</span>
+    </router-link>
+    <router-link to="/settings" class="bottom-nav-link" :class="{ 'is-active': currentRoute === '/settings' }">
+      <el-icon><Setting /></el-icon><span>管理</span>
+    </router-link>
+  </nav>
 </template>
 
 <script setup>
@@ -112,5 +101,27 @@ onUnmounted(() => {
 }
 .el-menu:not(.el-menu--collapse) {
   width: 220px;
+}
+.mobile-bottom-nav {
+  display: flex;
+}
+.bottom-nav-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #606266;
+  font-size: 11px;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.bottom-nav-link .el-icon {
+  font-size: 22px;
+}
+.bottom-nav-link.is-active {
+  color: #409eff;
 }
 </style>
