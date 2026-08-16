@@ -3,32 +3,50 @@ package com.familyledger.state;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Service
 public class FamilyStateService {
+    private static final Set<String> SUPPORTED_DOMAINS = Set.of("finance", "codex", "deepseek", "baby");
     private final StateSnapshotService snapshotService;
-    private final Map<String, StateCollector> collectors;
 
-    public FamilyStateService(StateSnapshotService snapshotService, List<StateCollector> collectors) {
+    public FamilyStateService(StateSnapshotService snapshotService) {
         this.snapshotService = snapshotService;
-        this.collectors = collectors.stream().collect(Collectors.toMap(StateCollector::domain, Function.identity()));
     }
 
-    public StateDomainResponse get(String domain) { return snapshotService.get(domain); }
+    public StateDomainResponse get(String domain) {
+        if (!SUPPORTED_DOMAINS.contains(domain)) {
+            return StateDomainResponse.builder()
+                    .domain(domain)
+                    .status(StateStatus.UNAVAILABLE)
+                    .source("state-snapshot:" + domain)
+                    .freshness(StateDomainResponse.Freshness.builder().ttlSeconds(0).build())
+                    .data(Map.of())
+                    .errorCode("UNKNOWN_DOMAIN")
+                    .errorMessage("不支持的状态域")
+                    .build();
+        }
+        return withDomain(domain, snapshotService.get(domain));
+    }
 
     public Map<String, StateDomainResponse> overview() {
         Map<String, StateDomainResponse> result = new LinkedHashMap<>();
-        for (String domain : List.of("finance", "codex", "deepseek", "baby")) result.put(domain, get(domain));
+        for (String domain : SUPPORTED_DOMAINS) result.put(domain, get(domain));
         return result;
     }
 
-    public StateDomainResponse refresh(String domain) {
-        StateCollector collector = collectors.get(domain);
-        if (collector == null) throw new IllegalArgumentException("不支持的状态域: " + domain);
-        return snapshotService.store(domain, collector.collect());
+    private StateDomainResponse withDomain(String domain, StateDomainResponse response) {
+        return StateDomainResponse.builder()
+                .domain(domain)
+                .status(response.getStatus())
+                .source(response.getSource())
+                .observedAt(response.getObservedAt())
+                .freshness(response.getFreshness())
+                .data(response.getData())
+                .errorCode(response.getErrorCode())
+                .errorMessage(response.getErrorMessage())
+                .nextRefreshAt(response.getNextRefreshAt())
+                .build();
     }
 }
