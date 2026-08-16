@@ -29,8 +29,8 @@ public class DeepSeekStateCollector implements StateCollector {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) { output = reader.lines().reduce("", (a, b) -> a + "\n" + b); }
             if (process.exitValue() != 0) return unavailable("DEEPSEEK_SOURCE_UNAVAILABLE", "DeepSeek 平台用量采集失败");
             Map<String, Object> data = metadata(output);
-            data.put("byApiKey", byApiKey(output));
             if (data.isEmpty()) return unavailable("DEEPSEEK_PARSE_FAILED", "DeepSeek 平台输出无法识别");
+            data.put("byApiKey", byApiKey(output));
             LocalDateTime observed = LocalDateTime.now(); LocalDateTime expires = observed.plusSeconds(TTL_SECONDS);
             return StateDomainResponse.builder().status(StateStatus.FRESH).source("deepseek-platform-api-export")
                     .observedAt(observed).freshness(StateDomainResponse.Freshness.builder().ttlSeconds(TTL_SECONDS).expiresAt(expires).build())
@@ -40,7 +40,15 @@ public class DeepSeekStateCollector implements StateCollector {
     private Map<String, Object> metadata(String output) {
         Map<String, Object> data = new LinkedHashMap<>();
         java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("---METADATA: ([^-]+)---").matcher(output);
-        while (matcher.find()) for (String token : matcher.group(1).trim().split("\\s+")) { String[] pair = token.split("=", 2); if (pair.length == 2) data.put(pair[0], pair[1]); }
+        while (matcher.find()) {
+            String block = matcher.group(1).trim();
+            // GPT Plus/Codex 周用量块属于 codex 域，显式忽略，不得混入 DeepSeek 数据。
+            if (block.contains("gpt_plus_usage")) continue;
+            for (String token : block.split("\\s+")) {
+                String[] pair = token.split("=", 2);
+                if (pair.length == 2 && !pair[0].equals("source")) data.put(pair[0], pair[1]);
+            }
+        }
         return data;
     }
     private java.util.List<Map<String, Object>> byApiKey(String output) {

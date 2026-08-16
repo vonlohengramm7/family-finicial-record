@@ -53,6 +53,28 @@ class StateSnapshotServiceTest {
     }
 
     @Test
+    void unavailableWithoutAnySuccessfulSnapshotStaysUnavailable() {
+        StateSnapshotMapper mapper = mock(StateSnapshotMapper.class);
+        StateSnapshot previous = new StateSnapshot();
+        previous.setDomain("deepseek");
+        previous.setSnapshotKey("overview");
+        previous.setPayloadJson("{}");
+        previous.setStatus("UNAVAILABLE");
+        when(mapper.selectOne(any())).thenReturn(previous);
+        StateSnapshotService service = new StateSnapshotService(mapper);
+        StateDomainResponse failed = StateDomainResponse.builder()
+                .status(StateStatus.UNAVAILABLE).source("deepseek-platform-api-export")
+                .data(Map.of()).errorCode("DEEPSEEK_SOURCE_UNAVAILABLE").errorMessage("采集失败")
+                .freshness(StateDomainResponse.Freshness.builder().ttlSeconds(86_400).build()).build();
+
+        StateDomainResponse result = service.store("deepseek", failed);
+
+        assertThat(result.getStatus()).isEqualTo(StateStatus.UNAVAILABLE);
+        assertThat(result.getObservedAt()).isNull();
+        assertThat(result.getData()).isEmpty();
+    }
+
+    @Test
     void storePersistsUnderExplicitDomainAndKey() {
         StateSnapshotMapper mapper = mock(StateSnapshotMapper.class);
         when(mapper.selectOne(any())).thenReturn(null);
@@ -146,5 +168,20 @@ class StateSnapshotServiceTest {
         service.store("finance", fresh("ledger-service:monthlyStats", Map.of("month", "2026-08")));
 
         verify(mapper).insert(org.mockito.ArgumentMatchers.<StateSnapshot>argThat(entity -> "overview".equals(entity.getSnapshotKey())));
+    }
+
+    @Test
+    void storeSanitizesSecretMaterialBeforeItReachesTheSnapshot() {
+        StateSnapshotMapper mapper = mock(StateSnapshotMapper.class);
+        when(mapper.selectOne(any())).thenReturn(null);
+        StateSnapshotService service = new StateSnapshotService(mapper);
+
+        service.store("codex", fresh("codex-monitor Bearer abcdefghijklmnop",
+                Map.of("apiKey", "sk-super-secret-value", "weeklyUsedPercent", 11)));
+
+        verify(mapper).insert(org.mockito.ArgumentMatchers.<StateSnapshot>argThat(entity ->
+                !entity.getSource().contains("abcdefghijklmnop")
+                        && !entity.getPayloadJson().contains("super-secret-value")
+                        && entity.getPayloadJson().contains("weeklyUsedPercent")));
     }
 }

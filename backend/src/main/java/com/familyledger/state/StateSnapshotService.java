@@ -30,10 +30,10 @@ public class StateSnapshotService {
     public StateDomainResponse store(String domain, String key, StateDomainResponse result) {
         StateSnapshot previous = mapper.selectOne(new LambdaQueryWrapper<StateSnapshot>()
                 .eq(StateSnapshot::getDomain, domain).eq(StateSnapshot::getSnapshotKey, key));
-        if (result.getStatus() == StateStatus.UNAVAILABLE && previous != null && previous.getPayloadJson() != null) {
+        if (result.getStatus() == StateStatus.UNAVAILABLE && hasSuccessfulPayload(previous)) {
             previous.setStatus(StateStatus.STALE.name());
-            previous.setErrorCode(result.getErrorCode());
-            previous.setErrorMessage(result.getErrorMessage());
+            previous.setErrorCode(SecretSanitizer.sanitize(result.getErrorCode()));
+            previous.setErrorMessage(SecretSanitizer.sanitize(result.getErrorMessage()));
             previous.setUpdatedAt(LocalDateTime.now());
             mapper.updateById(previous);
             return toResponse(previous, StateStatus.STALE);
@@ -41,13 +41,13 @@ public class StateSnapshotService {
         StateSnapshot snapshot = previous == null ? new StateSnapshot() : previous;
         snapshot.setDomain(domain);
         snapshot.setSnapshotKey(key);
-        snapshot.setPayloadJson(write(result.getData()));
-        snapshot.setSource(result.getSource());
+        snapshot.setPayloadJson(write(SecretSanitizer.sanitizeData(result.getData())));
+        snapshot.setSource(SecretSanitizer.sanitize(result.getSource()));
         snapshot.setObservedAt(result.getObservedAt());
         snapshot.setFreshUntil(result.getFreshness().getExpiresAt());
         snapshot.setStatus(result.getStatus().name());
-        snapshot.setErrorCode(result.getErrorCode());
-        snapshot.setErrorMessage(result.getErrorMessage());
+        snapshot.setErrorCode(SecretSanitizer.sanitize(result.getErrorCode()));
+        snapshot.setErrorMessage(SecretSanitizer.sanitize(result.getErrorMessage()));
         snapshot.setUpdatedAt(LocalDateTime.now());
         if (previous == null) {
             snapshot.setCreatedAt(LocalDateTime.now());
@@ -76,15 +76,26 @@ public class StateSnapshotService {
     }
 
     private StateDomainResponse toResponse(StateSnapshot snapshot, StateStatus status) {
-        return StateDomainResponse.builder().status(status).source(snapshot.getSource()).observedAt(snapshot.getObservedAt())
+        return StateDomainResponse.builder().status(status).source(SecretSanitizer.sanitize(snapshot.getSource())).observedAt(snapshot.getObservedAt())
                 .freshness(StateDomainResponse.Freshness.builder().ttlSeconds(ttl(snapshot)).expiresAt(snapshot.getFreshUntil()).build())
-                .data(read(snapshot.getPayloadJson())).errorCode(snapshot.getErrorCode()).errorMessage(snapshot.getErrorMessage())
+                .data(SecretSanitizer.sanitizeData(read(snapshot.getPayloadJson())))
+                .errorCode(SecretSanitizer.sanitize(snapshot.getErrorCode()))
+                .errorMessage(SecretSanitizer.sanitize(snapshot.getErrorMessage()))
                 .nextRefreshAt(snapshot.getFreshUntil()).build();
     }
 
     private long ttl(StateSnapshot snapshot) {
         if (snapshot.getObservedAt() == null || snapshot.getFreshUntil() == null) return 0;
         return Math.max(0, java.time.Duration.between(snapshot.getObservedAt(), snapshot.getFreshUntil()).getSeconds());
+    }
+
+    private boolean hasSuccessfulPayload(StateSnapshot snapshot) {
+        return snapshot != null
+                && snapshot.getObservedAt() != null
+                && (StateStatus.FRESH.name().equals(snapshot.getStatus()) || StateStatus.STALE.name().equals(snapshot.getStatus()))
+                && snapshot.getPayloadJson() != null
+                && !snapshot.getPayloadJson().isBlank()
+                && !"{}".equals(snapshot.getPayloadJson().trim());
     }
 
     private StateDomainResponse unavailable(String domain, String errorCode, String errorMessage) {
