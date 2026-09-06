@@ -29,14 +29,14 @@
             v-model="form.amount"
             :precision="2"
             :step="10"
-            :min="0"
+            :min="0.01"
             :max="999999.99"
             style="width: 100%;"
-            placeholder="输入金额"
+            placeholder="输入金额（只填正数，分类决定正负）"
           />
           <div style="font-size: 12px; margin-top: 4px;">
-            <span v-if="selectedCategoryIsIncome" style="color: #67c23a;">💹 收入分类，金额为正</span>
-            <span v-else-if="selectedCategoryIsExpense" style="color: #f56c6c;">💸 支出分类，金额自动转为负</span>
+            <span v-if="selectedCategoryIsIncome" style="color: #67c23a;">💹 收入分类 → 金额存为正</span>
+            <span v-else-if="form.categoryId" style="color: #f56c6c;">💸 支出分类 → 金额存为负</span>
             <span v-else style="color: #909399;">选择分类后自动确定正负</span>
           </div>
         </el-form-item>
@@ -103,10 +103,9 @@ const selectedCategoryIsExpense = computed(() => {
 watch(() => form.categoryId, () => {
   if (form.amount === null || form.amount === undefined || form.amount === 0) return
   const isIncome = selectedCategoryIsIncome.value
-  const isExpense = selectedCategoryIsExpense.value
   if (isIncome && form.amount < 0) {
     form.amount = Math.abs(form.amount)
-  } else if (isExpense && form.amount > 0) {
+  } else if (!isIncome && form.amount > 0) {
     form.amount = -Math.abs(form.amount)
   }
 })

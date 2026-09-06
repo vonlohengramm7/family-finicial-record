@@ -5,9 +5,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -31,6 +34,27 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResult<Void>> handleIllegalArgument(IllegalArgumentException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResult.error(400, e.getMessage()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResult<Void>> handleUnreadable(HttpMessageNotReadableException e) {
+        log.warn("Request body not readable: {}", e.getMessage());
+        String msg = "请求体格式错误，无法解析为 JSON。批量接口需传 JSON 数组，如 [{\"userId\":1,\"categoryId\":120,...}]，不要把对象包进字段（如 {\"transactions\":[...]}）。单笔接口传单个对象。";
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResult.error(400, msg));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResult<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        String msg = "参数类型错误：" + e.getName() + " 需要 " + (e.getRequiredType() == null ? "正确的类型" : e.getRequiredType().getSimpleName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResult.error(400, msg));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResult<Void>> handleMissingParam(MissingServletRequestParameterException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResult.error(400, "缺少必填参数：" + e.getParameterName()));
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)

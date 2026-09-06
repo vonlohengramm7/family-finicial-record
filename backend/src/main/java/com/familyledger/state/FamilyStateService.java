@@ -8,7 +8,7 @@ import java.util.Set;
 
 @Service
 public class FamilyStateService {
-    private static final Set<String> SUPPORTED_DOMAINS = Set.of("finance", "codex", "deepseek", "baby");
+    private static final Set<String> SUPPORTED_DOMAINS = Set.of("finance", "codex", "opencodeGo", "deepseek", "baby");
     private final StateSnapshotService snapshotService;
 
     public FamilyStateService(StateSnapshotService snapshotService) {

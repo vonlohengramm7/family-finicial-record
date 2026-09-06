@@ -28,6 +28,10 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Credentials / local state (never commit)
+frontend/.htpasswd
+.hermes/
+
 # Env
 .env
 *.local

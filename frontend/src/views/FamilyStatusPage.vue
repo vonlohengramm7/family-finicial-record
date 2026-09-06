@@ -22,7 +22,7 @@
     />
 
     <div v-if="loading" class="status-grid" aria-label="正在加载家庭状态">
-      <el-skeleton v-for="index in 4" :key="index" :rows="5" animated class="status-skeleton" />
+      <el-skeleton v-for="index in 5" :key="index" :rows="5" animated class="status-skeleton" />
     </div>
     <el-alert v-else-if="loadError" title="家庭状态暂时无法加载" type="error" :description="loadError" :closable="false" show-icon />
 
@@ -94,10 +94,11 @@ import { getFamilyStatus } from '../api/index.js'
 import { createFamilyStatusView } from '../utils/familyStatus.js'
 
 const router = useRouter()
-const domainOrder = ['finance', 'codex', 'deepseek', 'baby']
+const domainOrder = ['finance', 'codex', 'opencodeGo', 'deepseek', 'baby']
 const domainLabels = {
   finance: { eyebrow: '本月账本', title: '家庭财务' },
   codex: { eyebrow: '套餐额度', title: 'GPT / Codex' },
+  opencodeGo: { eyebrow: '套餐额度', title: 'OpenCode Go' },
   deepseek: { eyebrow: '平台用量', title: 'DeepSeek 按 Key 汇总' },
   baby: { eyebrow: '成长记录', title: '汤圆今日' },
 }

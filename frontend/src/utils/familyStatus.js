@@ -1,4 +1,4 @@
-const DOMAIN_ORDER = ['finance', 'codex', 'deepseek', 'baby']
+const DOMAIN_ORDER = ['finance', 'codex', 'opencodeGo', 'deepseek', 'baby']
 const STATUS_WEIGHT = { FRESH: 0, STALE: 1, UNAVAILABLE: 2, ERROR: 2 }
 
 const STATUS_LABELS = {
@@ -96,18 +96,47 @@ function codexView(payload) {
   return view
 }
 
+function openCodeGoView(payload) {
+  const view = domainBase('opencodeGo', payload)
+  const data = payload.data || {}
+  const windows = [
+    ['rolling', '5 小时'],
+    ['weekly', '本周'],
+    ['monthly', '本月'],
+  ]
+  view.metrics = windows
+    .filter(([key]) => Number.isFinite(data[key]?.percent))
+    .map(([key, label]) => ({ label: `${label}已用`, value: `${data[key].percent}%` }))
+  view.details = windows
+    .filter(([key]) => data[key]?.resetsAt)
+    .map(([key, label]) => ({ label: `${label}重置`, value: String(data[key].resetsAt).replace('T', ' ') }))
+  return view
+}
+
 function deepseekView(payload) {
   const view = domainBase('deepseek', payload)
   const data = payload.data || {}
-  const overview = data.overview || data.platformOverview
-  if (overview) {
-    const entries = [
-      ['费用', overview.cost],
-      ['请求数', overview.requestCount],
-      ['Token', overview.totalTokens],
-    ].filter(([, value]) => value !== undefined && value !== null)
-    view.metrics = entries.map(([label, value]) => ({ label, value: label === '费用' ? money(value) : String(value) }))
+  // 当前采集器返回 flat payload；保留 overview 兼容旧快照，避免更新过程中又出现空卡片。
+  const overview = data.overview || data.platformOverview || {
+    cost: data.cost,
+    requestCount: data.by_key_req,
+    totalTokens: data.total_tokens,
   }
+  const entries = [
+    ['今日费用', overview.cost],
+    ['请求数', overview.requestCount],
+    ['Token', overview.totalTokens],
+  ].filter(([, value]) => value !== undefined && value !== null && value !== '')
+  view.metrics = entries.map(([label, value]) => ({
+    label,
+    value: label === '今日费用' ? money(value) : Number(value).toLocaleString('zh-CN'),
+  }))
+
+  const keyGroups = Array.isArray(data.byApiKey) ? data.byApiKey : []
+  view.details = keyGroups.flatMap((key) => (Array.isArray(key.models) ? key.models : []).map((model) => ({
+    label: `${key.label || 'api-key'} · ${model.model || '未知模型'}`,
+    value: `${textValue(model.requests, '0')} 请求 · ${money(model.cost ?? 0)}`,
+  })))
   return view
 }
 
@@ -125,6 +154,7 @@ function buildDomainView(domain, payload) {
   const safePayload = payload || { domain, status: 'UNAVAILABLE', data: {}, error: { reason: '未收到该域状态' } }
   if (domain === 'finance') return financeView(safePayload)
   if (domain === 'codex') return codexView(safePayload)
+  if (domain === 'opencodeGo') return openCodeGoView(safePayload)
   if (domain === 'deepseek') return deepseekView(safePayload)
   return babyView(safePayload)
 }
